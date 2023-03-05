@@ -36,13 +36,17 @@ static void pick_func(mgeditorcontext editor_context,
 
 mgbool init(mgplugin* plugin, mgresource* resource, int* argc, char* argv[]);
 
+void exit_loop_cut(mgplugin plugin);
+
+void generate(plugintool_struct* pt_s);
+
 static mgstatus generate_callback(mggui gui,
 	mgcontrolid controlId,
 	mgguicallbackreason callbackReason,
 	void* userData,
 	void* callData);
 
-static mgstatus initialize_control_callbacks(plugintool_struct* pt_s);
+static void initialize_control_callbacks(plugintool_struct* pt_s);
 
 static mgstatus initialize_dialog(plugintool_struct* pt_s);
 

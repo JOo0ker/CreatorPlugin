@@ -20,10 +20,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LoopCut.cpp" />
+    <ClCompile Include="LoopCutFunc.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoopCut.h" />
+    <ClInclude Include="LoopCutFunc.h" />
+    <ClInclude Include="mgType.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ToolHead.h" />
   </ItemGroup>

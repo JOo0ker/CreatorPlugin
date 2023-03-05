@@ -58,7 +58,7 @@ MGPIDECLARE(mgbool) mgpInit(mgplugin plugin, int* argc, char* argv[])
 MGPIDECLARE(void) mgpExit(mgplugin plugin)
 {
 	// Terminate the tool declared
-
+	exit_loop_cut(plugin);
 
 	mgUnregisterAllTools(plugin);
 	mgUnloadResource(resource);
