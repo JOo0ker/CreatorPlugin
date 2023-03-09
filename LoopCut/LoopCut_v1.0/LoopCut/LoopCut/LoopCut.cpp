@@ -142,6 +142,7 @@ void pick_func(mgeditorcontext editor_context, mgpickinputdata* pick_input_data,
 	case fltVertex:
 		if (mgIsSelectedEdge(rec))
 		{
+			mgDeleteAllConstructs(pt_s->econtext);
 			select_loop(pt_s, rec);
 		}
 

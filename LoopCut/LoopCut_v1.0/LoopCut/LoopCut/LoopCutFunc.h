@@ -16,12 +16,12 @@ mgstatus select_loop(PLUGINTOOLSTRUCT* pt_s, mgrec* v1);
 
 /**
  * \brief get the loop vertex around the input vtx
- * \param v1 the center vtx
+ * \param v the center vtx
  * \param dire loop direction
  * \param pos return node's position
  * \return the next/previous vtx
  */
-mgrec* get_loop_vtx(mgrec* v1, loop_dire dire, short* pos);
+mgrec* get_loop_vtx(mgrec* v, const loop_dire dire, short* pos);
 
 /**
  * \brief get a face loop about the selected edge. NOTE: loop cut only works when the polygon has a shared edge count of TWO
@@ -40,3 +40,10 @@ static mgbool mgw_post_check_edge_in_polygon(mgrec* db, mgrec* parent, mgrec* re
 
 
 mgcoord3d get_vertex_coord(mgrec* vtx);
+
+mgstatus insert_face_loop_node(face_loop* f_l, mgrec* p, const short* pos);
+mgstatus free_face_loop(face_loop* f_l);
+
+mgbool show_face_fool(const face_loop* f_l);
+
+mgbool another_edge_pos(const short* pos, short* anti_pos);

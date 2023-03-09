@@ -14,8 +14,8 @@ typedef struct face_loop
 	struct face_loop *next, *prev, *first;
 
 	mgrec* face;
-	short pos[2];
-	mg_edge* coincide_edge[2];
+	short pos[2];		// the 2nd coincide vertex's position 
+	mg_edge* coincide_edge_first, *coincide_edge_second;
 }face_loop;
 
 typedef enum MOUSEINPPUTMODE
