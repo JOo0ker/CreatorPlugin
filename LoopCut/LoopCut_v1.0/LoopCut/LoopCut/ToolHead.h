@@ -25,6 +25,16 @@ typedef enum MOUSEINPPUTMODE
 	pick = 3
 }mouseinputmode;
 
+typedef enum FACLELOOPCASE
+{
+	unknown,
+	normal,
+	match_face_first_time,
+	match_face_second_time,
+	match_previous_face
+
+}faceloopcase;
+
 static mouseinputmode mouseinputm = mouseinputmode(pick);
 
 typedef struct PLUGINTOOLSTRUCT
@@ -35,6 +45,7 @@ typedef struct PLUGINTOOLSTRUCT
 	mgcode mode;
 	mgrec* parent;
 	mgeditorcontext econtext;
+	face_loop* f_l;
 }plugintool_struct;
 
 

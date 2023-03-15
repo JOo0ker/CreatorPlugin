@@ -53,3 +53,5 @@ static mgstatus initialize_dialog(plugintool_struct* pt_s);
 static void terminate_func(mgeditorcontext editorContext,
 	mgtoolterminationreason reason,
 	void* toolData);
+
+static void loop_cut_execute(plugintool_struct* pt_s);

@@ -224,7 +224,7 @@ void exit_loop_cut(mgplugin plugin)
 
 void generate(plugintool_struct* pt_s)
 {
-
+	loop_cut_execute(pt_s);
 }
 
 /**
@@ -320,4 +320,9 @@ void terminate_func(mgeditorcontext editorContext, mgtoolterminationreason reaso
 	{
 		mgFree(pt_s);
 	}
+}
+
+void loop_cut_execute(plugintool_struct* pt_s)
+{
+	
 }

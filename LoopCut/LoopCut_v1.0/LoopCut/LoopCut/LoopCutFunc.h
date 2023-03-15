@@ -32,7 +32,7 @@ mgrec* get_loop_vtx(mgrec* v, const loop_dire dire, short* pos);
 mgbool get_face_loop(PLUGINTOOLSTRUCT* pt_s, face_loop* f_l);
 
 
-mgbool check_edge_in_polygon(face_loop* f_l, mgrec* p);
+mgbool check_edge_in_polygon(face_loop* f_l, mgrec* p, short* pos);
 
 static mgbool mgw_per_check_edge_in_polygon(mgrec* db, mgrec* parent, mgrec* rec, void* user_data);
 
@@ -41,9 +41,19 @@ static mgbool mgw_post_check_edge_in_polygon(mgrec* db, mgrec* parent, mgrec* re
 
 mgcoord3d get_vertex_coord(mgrec* vtx);
 
-mgstatus insert_face_loop_node(face_loop* f_l, mgrec* p, const short* pos);
+faceloopcase insert_face_loop_node(face_loop* f_l, mgrec* p, const short* pos);
 mgstatus free_face_loop(face_loop* f_l);
 
 mgbool show_face_fool(const face_loop* f_l);
 
 mgbool another_edge_pos(const short* pos, short* anti_pos);
+
+mgbool match_face_loop_end(const face_loop* f_l);
+
+mgbool draw_loop_cut_cst(PLUGINTOOLSTRUCT* pt_s, const face_loop* f_l);
+
+mgbool draw_edge_node_cst(PLUGINTOOLSTRUCT* pt_s, mgcoord3d v10_coord, mgcoord3d v20_coord);
+
+mgbool cut_face_with_2_points(mgrec* f, const mgcoord3d* v1, const mgcoord3d* v2);
+
+mgbool is_point_in_edge(mgrec* e_v1, mgrec* e_v2, mgcoord3d v_coord);
