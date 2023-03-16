@@ -54,6 +54,6 @@ mgbool draw_loop_cut_cst(PLUGINTOOLSTRUCT* pt_s, const face_loop* f_l);
 
 mgbool draw_edge_node_cst(PLUGINTOOLSTRUCT* pt_s, mgcoord3d v10_coord, mgcoord3d v20_coord);
 
-mgbool cut_face_with_2_points(mgrec* f, const mgcoord3d* v1, const mgcoord3d* v2);
+mgbool cut_face_loop(PLUGINTOOLSTRUCT* pt_s);
 
-mgbool is_point_in_edge(mgrec* e_v1, mgrec* e_v2, mgcoord3d v_coord);
+mgbool is_collinear();

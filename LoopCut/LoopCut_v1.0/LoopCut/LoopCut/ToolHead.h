@@ -45,7 +45,6 @@ typedef struct PLUGINTOOLSTRUCT
 	mgcode mode;
 	mgrec* parent;
 	mgeditorcontext econtext;
-	face_loop* f_l;
 }plugintool_struct;
 
 
@@ -58,3 +57,6 @@ typedef enum
 	ePrevious,
 	eNext,
 }loop_dire;
+
+/* Globals */
+static mgresource* resource_;

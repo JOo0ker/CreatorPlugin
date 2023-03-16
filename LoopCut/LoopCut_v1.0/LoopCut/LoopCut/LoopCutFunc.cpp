@@ -3,6 +3,7 @@
 #include <cstring>
 
 static short match_first_face_times = 0;
+face_loop* f_l;
 
 mgstatus cast_test_func(mgrec* db)
 {
@@ -46,7 +47,6 @@ mgstatus select_loop(PLUGINTOOLSTRUCT* pt_s, mgrec* v1)
 	match_first_face_times = 0;
 
 	// first face node
-	auto f_l = pt_s->f_l;
 	free_face_loop(f_l);
 	f_l = static_cast<face_loop*>(mgMalloc(sizeof(face_loop)));
 
@@ -546,49 +546,23 @@ mgbool draw_edge_node_cst(PLUGINTOOLSTRUCT* pt_s, mgcoord3d v10_coord, mgcoord3d
 	return MG_TRUE;
 }
 
-mgbool cut_face_with_2_points(mgrec* f, const mgcoord3d* v1, const mgcoord3d* v2)
+mgbool cut_face_loop(PLUGINTOOLSTRUCT* pt_s)
 {
-	int pos[2] = { 0 };
+	f_l = f_l->first;
+	mgSendMessage(MMSG_STATUS, "first face pos : %1d, %2d", f_l->pos[0], f_l->pos[1]);
 
-	mgrec* e_v1 = mgGetChildNth(f, 1);
-	mgrec* e_v2 = mgGetChildNth(f, 2);
-
-	mgbool is_in_edge = MG_FALSE;
-
-	if(is_point_in_edge(e_v1, e_v2, *v1))
-	{
-		
-	}
-
-	// create first face
-
-
-
-
-
-	// create second face
-
-
+	return MG_TRUE;
 }
 
-mgbool is_point_in_edge(mgrec* e_v1, mgrec* e_v2, mgcoord3d v_coord)
+
+
+mgbool is_collinear()
 {
-	double temp_x = 0.0;
-	double temp_y = 0.0;
-	double temp_z = 0.0;
 
-	const mgcoord3d e_v1_coord	= get_vertex_coord(e_v1);
-	const mgcoord3d e_v2_coord	= get_vertex_coord(e_v2);
 
-	temp_x = (v_coord.x - e_v1_coord.x) / (v_coord.x - e_v2_coord.x);
-	temp_y = (v_coord.y - e_v1_coord.y) / (v_coord.y - e_v2_coord.y);
-	temp_z = (v_coord.z - e_v1_coord.z) / (v_coord.z - e_v2_coord.z);
 
-	if ((temp_x - temp_y)		< 0.00001
-		&& (temp_y - temp_z)	< 0.00001
-		&& (temp_x - temp_z)	< 0.00001)
+	//mgCoord3dCross()
 
-		return MG_TRUE;
 
-	return MG_FALSE;
+	return mgbool();
 }

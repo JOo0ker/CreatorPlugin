@@ -4,10 +4,6 @@
 
 #include "ToolHead.h"
 
-
-static mgresource* resource_;
-
-
 static mgstatus loop_cut_start_func(mgplugintool plugin_tool,
 	void* user_data,
 	void* call_data);

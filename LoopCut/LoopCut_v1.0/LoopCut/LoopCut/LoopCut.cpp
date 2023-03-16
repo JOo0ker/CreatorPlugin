@@ -1,7 +1,11 @@
 ﻿#include "LoopCut.h"
 
+#include <cstring>
+
 #include "LoopCutFunc.h"
 #include "resource.h"
+
+extern face_loop* f_l;
 
 mgstatus loop_cut_start_func(mgplugintool plugin_tool, void* user_data, void* call_data)
 {
@@ -140,7 +144,8 @@ void pick_func(mgeditorcontext editor_context, mgpickinputdata* pick_input_data,
 	switch (code)
 	{
 	case fltVertex:
-		if (mgIsSelectedEdge(rec))
+		if (mgIsSelectedEdge(rec)
+			&& (strcmp( mgGetName(rec), "Construction") != 0))
 		{
 			mgDeleteAllConstructs(pt_s->econtext);
 			select_loop(pt_s, rec);
@@ -160,9 +165,6 @@ void pick_func(mgeditorcontext editor_context, mgpickinputdata* pick_input_data,
 		mgSendMessage(MMSG_TIP, "Unknown pic.");
 		break;
 	}
-	
-
-
 }
 
 mgbool init(mgplugin* plugin, mgresource* resource, int* argc, char* argv[])
@@ -224,19 +226,24 @@ void exit_loop_cut(mgplugin plugin)
 
 void generate(plugintool_struct* pt_s)
 {
-	loop_cut_execute(pt_s);
+	if (f_l) loop_cut_execute(pt_s);
+	else
+	{
+		mgSendMessage(MMSG_STATUS, "f_l is nullptr.");
+	}
 }
 
 /**
  * \brief invoke the push ok button
  */
-mgstatus generate_callback(mggui gui, 
+static mgstatus generate_callback(mggui gui, 
                            mgcontrolid controlId, 
                            mgguicallbackreason callbackReason,
                            void* userData, 
                            void* callData)
 {
-	auto pt_s =static_cast<plugintool_struct*>(userData);
+	const auto pt_s =static_cast<plugintool_struct*>(userData);
+	mgSendMessage(MMSG_STATUS, "generate_callback1");
 	generate(pt_s);
 	return MG_TRUE;
 }
@@ -249,7 +256,7 @@ void initialize_control_callbacks(plugintool_struct* pt_s)
 	{
 		mggui gui_item;
 
-		//if(gui_item = mgFindGuiById(pt_s->dialog, MGID_OK))
+		//if((gui_item = mgFindGuiById(pt_s->dialog, MGID_OK)))
 		//{
 		//	mgSetGuiCallback(gui_item, MGCB_ACTIVATE, generate_callback, static_cast<void*>(pt_s));
 		//}
@@ -258,20 +265,6 @@ void initialize_control_callbacks(plugintool_struct* pt_s)
 
 mgstatus initialize_dialog(plugintool_struct* pt_s)
 {
-	//switch (mouseinputm)
-	//{
-	//case mouseinputmode::vertex:
-	//	mgEditorSelectMouseInput(pt_s->econtext, MMSI_VERTEXINPUT);
-	//	break;
-	//case mouseinputmode::point:
-	//	mgEditorSelectMouseInput(pt_s->econtext, MMSI_POINTINPUT);
-	//	break;
-	//case mouseinputmode::pick:
-	//	mgEditorSelectMouseInput(pt_s->econtext, MMSI_PICKINPUT);
-	//	break;
-	//default:
-	//	break;
-	//}
 	mgEditorSelectMouseInput(pt_s->econtext, MMSI_PICKINPUT);
 
 	if(pt_s->dialog)
@@ -309,6 +302,8 @@ void terminate_func(mgeditorcontext editorContext, mgtoolterminationreason reaso
 	{
 	case MTRM_DONE:
 		//generate(pt_s);
+		mgSendMessage(MMSG_STATUS, "terminate_func");
+		generate(pt_s);
 		break;
 	case MTRM_CANCEL:
 		mgDeleteAllConstructs(editorContext);
@@ -324,5 +319,5 @@ void terminate_func(mgeditorcontext editorContext, mgtoolterminationreason reaso
 
 void loop_cut_execute(plugintool_struct* pt_s)
 {
-	
+	cut_face_loop(pt_s);
 }
