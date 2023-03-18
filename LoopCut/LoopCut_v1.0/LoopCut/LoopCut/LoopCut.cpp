@@ -320,4 +320,5 @@ void terminate_func(mgeditorcontext editorContext, mgtoolterminationreason reaso
 void loop_cut_execute(plugintool_struct* pt_s)
 {
 	cut_face_loop(pt_s);
+	free_face_loop();
 }
