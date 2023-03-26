@@ -9,13 +9,13 @@ typedef struct MGEDGE
 	int edge_shared_count;
 }mg_edge;
 
-typedef struct face_loop
+typedef struct FACELOOP
 {
-	struct face_loop *next, *prev, *first;
-
+	FACELOOP *next, *prev, *first;
+	mgbool is_last_node;
 	mgrec* face;
 	short pos[2];		// the 2nd coincide vertex's position 
-	mg_edge* coincide_edge_first, *coincide_edge_second;
+	mg_edge/** coincide_edge_first,*/ *coincide_edge_second;
 }face_loop;
 
 typedef enum MOUSEINPPUTMODE
