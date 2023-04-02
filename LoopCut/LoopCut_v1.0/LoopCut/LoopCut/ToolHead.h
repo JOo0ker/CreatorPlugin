@@ -1,6 +1,7 @@
 #pragma once
+#include <vector>
+
 #include "mgapiall.h"
-#include "mgapires.h"
 
 typedef struct MGEDGE
 {
@@ -14,8 +15,8 @@ typedef struct FACELOOP
 	FACELOOP *next, *prev, *first;
 	mgbool is_last_node;
 	mgrec* face;
-	short pos[2];		// the 2nd coincide vertex's position 
-	mg_edge/** coincide_edge_first,*/ *coincide_edge_second;
+	short pos[2];		// coincide vertex's position 
+	mg_edge* coincide_edge;
 }face_loop;
 
 typedef enum MOUSEINPPUTMODE
@@ -35,18 +36,14 @@ typedef enum FACLELOOPCASE
 
 }faceloopcase;
 
-static mouseinputmode mouseinputm = mouseinputmode(pick);
-
 typedef struct PLUGINTOOLSTRUCT
 {
-	mgplugintool plugintool;
+	mgplugintool plugin_tool;
 	mggui dialog;
 	mgrec* db;
 	mgcode mode;
-	mgrec* parent;
 	mgeditorcontext econtext;
 }plugintool_struct;
-
 
 
 #define PREVIOUS ePrevious
@@ -60,3 +57,4 @@ typedef enum
 
 /* Globals */
 static mgresource* resource_;
+static mouseinputmode mouseinputm = mouseinputmode(pick);

@@ -9,14 +9,13 @@ extern face_loop* f_l;
 
 mgstatus loop_cut_start_func(mgplugintool plugin_tool, void* user_data, void* call_data)
 {
-	auto pt_s =static_cast<plugintool_struct*>(mgMalloc(sizeof(plugintool_struct)));
+	const auto pt_s =static_cast<plugintool_struct*>(mgMalloc(sizeof(plugintool_struct)));
 
-	auto cb_data = static_cast<mgeditorcallbackrec*>(call_data);
+	const auto cb_data = static_cast<mgeditorcallbackrec*>(call_data);
 
+	//Initialize the user data record
 	pt_s->db = mgGetActivationDb(cb_data->toolActivation);
-
-		//Initialize the user data record
-	pt_s->plugintool = plugin_tool;
+	pt_s->plugin_tool = plugin_tool;
 	pt_s->dialog = MG_NULL;
 	pt_s->econtext = MG_NULL;
 	pt_s->mode = mgGetModelingMode(pt_s->db);
@@ -27,25 +26,24 @@ mgstatus loop_cut_start_func(mgplugintool plugin_tool, void* user_data, void* ca
 	return MSTAT_OK;
 }
 
-mggui create_dialog_func(mgplugintool pluginTool, void* toolData)
+mggui create_dialog_func(mgplugintool plugin_tool, void* tool_data)
 {
-	auto pt_s = static_cast<plugintool_struct*>(toolData);
+	const auto pt_s = static_cast<plugintool_struct*>(tool_data);
 
 	pt_s->dialog = mgResourceGetDialog(MG_NULL, *resource_, LOOPCUTDIALOG,
 		MGCB_INIT | MGCB_SHOW | MGCB_DESTROY,
-		DialogProc, pt_s);
+		dialog_proc, pt_s);
 
 	return (pt_s->dialog);
-
 }
 
- mgstatus DialogProc(mggui dialog, 
+ mgstatus dialog_proc(mggui dialog, 
 						mgdialogid dialog_id, 
 						mgguicallbackreason callback_reason, 
 						void* user_data, 
 						void* call_data)
 {
-	auto pt_s = static_cast<plugintool_struct*>(user_data);
+	const auto pt_s = static_cast<plugintool_struct*>(user_data);
 
 	mgeditorcontext editor_context = mgEditorGetContext(dialog);
 
@@ -58,22 +56,24 @@ mggui create_dialog_func(mgplugintool pluginTool, void* toolData)
 
 	case MGCB_DESTROY:
 		break;
+
+	default: 
+		break;
 	}
 
 	return MSTAT_OK;
 }
 
-int vertex_func(mgeditorcontext editor_context, mgvertexinputdata* v_data, void* t_data)
+int vertex_func(mgeditorcontext editor_context, mgvertexinputdata* vertex_input_data, void* tool_data)
 {
-#if 1
-	auto pt_s = static_cast<PLUGINTOOLSTRUCT*>(t_data);
-	int update_ref = 0;
+	auto pt_s = static_cast<PLUGINTOOLSTRUCT*>(tool_data);
+	constexpr int update_ref = 0;
 
-	const mgmousestate mouse_event = v_data->mouseEvent;
-	const unsigned int keyboard_flags = v_data->keyboardFlags;
-	const unsigned int button_flags = v_data->buttonFlags;
-	const mgcoord3d* this_point = v_data->thisPoint;
-	const mgcoord3d* first_point = v_data->firstPoint;
+	const mgmousestate mouse_event = vertex_input_data->mouseEvent;
+	const unsigned int keyboard_flags = vertex_input_data->keyboardFlags;
+	const unsigned int button_flags = vertex_input_data->buttonFlags;
+	const mgcoord3d* this_point = vertex_input_data->thisPoint;
+	const mgcoord3d* first_point = vertex_input_data->firstPoint;
 
 
 	mgSendMessage(MMSG_STATUS, "The keyboard flag is : %1d", keyboard_flags);
@@ -99,7 +99,6 @@ int vertex_func(mgeditorcontext editor_context, mgvertexinputdata* v_data, void*
 		break;
 	}
 	return (update_ref);
-#endif
 }
 
 void point_func(mgeditorcontext editor_context, mgpointinputdata* point_input_data, void* tool_data)
@@ -132,12 +131,12 @@ void point_func(mgeditorcontext editor_context, mgpointinputdata* point_input_da
 
 void pick_func(mgeditorcontext editor_context, mgpickinputdata* pick_input_data, void* tool_data)
 {
-	auto pt_s = static_cast<PLUGINTOOLSTRUCT*>(tool_data);
+	const auto pt_s = static_cast<PLUGINTOOLSTRUCT*>(tool_data);
 	int update_ref = 0;
 
 	unsigned int keyboard_flags = pick_input_data->keyboardFlags;
 	unsigned int button_flags = pick_input_data->buttonFlags;
-	mgselectlist select_list = pick_input_data->pickList;
+	const mgselectlist select_list = pick_input_data->pickList;
 
 	mgrec* rec = mgGetNextRecInList(select_list, MG_NULL);
 	const mgcode code = mgGetCode(rec);
@@ -153,9 +152,7 @@ void pick_func(mgeditorcontext editor_context, mgpickinputdata* pick_input_data,
 
 		break;
 	case fltPolygon:
-
 		break;
-
 	case fltObject:
 		break;
 	case fltGroup:
@@ -173,44 +170,44 @@ mgbool init(mgplugin* plugin, mgresource* resource, int* argc, char* argv[])
 
 	mgbool ini_ok = MG_FALSE;
 	plugintool_struct pt_s;
-	pt_s.plugintool = mgRegisterEditor(
+	pt_s.plugin_tool = mgRegisterEditor(
 		*plugin, "Loop cut",
 		loop_cut_start_func, resource,
 		MTA_VERSION, "1,0",
 		MTA_PALETTELOCATION, MPAL_MODIFYFACE,
 		MTA_PALETTEICON, mgResourceGetPixmap(*resource, LOOPCUTBITMAP),
 		MG_NULL);
-	if(!pt_s.plugintool)
+	if(!pt_s.plugin_tool)
 	{
 		mgSendMessage(MMSG_ERROR, "mgRegisterEditor failed.");
 		return MG_FALSE;
 	}
 
-	if(!MSTAT_ISOK(mgEditorSetVertexFunc(pt_s.plugintool, vertex_func)))
+	if(!MSTAT_ISOK(mgEditorSetVertexFunc(pt_s.plugin_tool, vertex_func)))
 	{
 		mgSendMessage(MMSG_ERROR, "mgEditorSetVertexFunc failed.");
 		return MG_FALSE;
 	}
 
-	if (!MSTAT_ISOK(mgEditorSetPointFunc(pt_s.plugintool, point_func)))
+	if (!MSTAT_ISOK(mgEditorSetPointFunc(pt_s.plugin_tool, point_func)))
 	{
 		mgSendMessage(MMSG_ERROR, "mgEditorSetPointFunc failed.");
 		return MG_FALSE;
 	}
 
-	if (!MSTAT_ISOK(mgEditorSetPickFunc(pt_s.plugintool, pick_func)))
+	if (!MSTAT_ISOK(mgEditorSetPickFunc(pt_s.plugin_tool, pick_func)))
 	{
 		mgSendMessage(MMSG_ERROR, "mgEditorSetPickFunc failed.");
 		return MG_FALSE;
 	}
 
-	if(!MSTAT_ISOK(mgEditorSetTerminateFunc(pt_s.plugintool, terminate_func)))
+	if(!MSTAT_ISOK(mgEditorSetTerminateFunc(pt_s.plugin_tool, terminate_func)))
 	{
 		mgSendMessage(MMSG_ERROR, "mgEditorSetTerminateFunc failed.");
 		return MG_FALSE;
 	}
 
-	if(!MSTAT_ISOK(mgEditorSetCreateDialogFunc(pt_s.plugintool, create_dialog_func)))
+	if(!MSTAT_ISOK(mgEditorSetCreateDialogFunc(pt_s.plugin_tool, create_dialog_func)))
 	{
 		mgSendMessage(MMSG_ERROR, "mgEditorSetCreateDialogFunc failed.");
 		return MG_FALSE;
@@ -227,25 +224,18 @@ void exit_loop_cut(mgplugin plugin)
 void generate(plugintool_struct* pt_s)
 {
 	if (f_l) loop_cut_execute(pt_s);
-	else
-	{
-		mgSendMessage(MMSG_STATUS, "f_l is nullptr.");
-	}
 }
 
-/**
- * \brief invoke the push ok button
- */
 static mgstatus generate_callback(mggui gui, 
-                           mgcontrolid controlId, 
-                           mgguicallbackreason callbackReason,
-                           void* userData, 
-                           void* callData)
+                           mgcontrolid control_id, 
+                           mgguicallbackreason callback_reason,
+                           void* user_data, 
+                           void* call_data)
 {
-	const auto pt_s =static_cast<plugintool_struct*>(userData);
+	const auto pt_s =static_cast<plugintool_struct*>(user_data);
 	mgSendMessage(MMSG_STATUS, "generate_callback1");
 	generate(pt_s);
-	return MG_TRUE;
+	return MSTAT_OK;
 }
 
 void initialize_control_callbacks(plugintool_struct* pt_s)
@@ -267,46 +257,45 @@ mgstatus initialize_dialog(plugintool_struct* pt_s)
 {
 	mgEditorSelectMouseInput(pt_s->econtext, MMSI_PICKINPUT);
 
-	if(pt_s->dialog)
+	if (!pt_s->dialog)
 	{
-		mggui gui_item;
+		return MG_FALSE;
+	}
+	mggui gui_item;
 
-		if(gui_item = mgFindGuiById(pt_s->dialog, X_EDIT))
-		{
-			mgTextSetDouble(gui_item, 0.f, "%f");
-		}
-		if (gui_item = mgFindGuiById(pt_s->dialog, Y_EDIT))
-		{
-			mgTextSetDouble(gui_item, 0.f, "%f");
-		}
-		if (gui_item = mgFindGuiById(pt_s->dialog, Z_EDIT))
-		{
-			mgTextSetDouble(gui_item, 0.f, "%f");
-		}
-
-		if (gui_item = mgFindGuiById(pt_s->dialog, TEXT_EDIT))
-		{
-			mgTextSetString(gui_item, "test string");
-		}
-
+	if ((gui_item = mgFindGuiById(pt_s->dialog, X_EDIT)))
+	{
+		mgTextSetDouble(gui_item, 0.f, "%f");
+	}
+	if ((gui_item = mgFindGuiById(pt_s->dialog, Y_EDIT)))
+	{
+		mgTextSetDouble(gui_item, 0.f, "%f");
+	}
+	if ((gui_item = mgFindGuiById(pt_s->dialog, Z_EDIT)))
+	{
+		mgTextSetDouble(gui_item, 0.f, "%f");
 	}
 
+	if ((gui_item = mgFindGuiById(pt_s->dialog, TEXT_EDIT)))
+	{
+		mgTextSetString(gui_item, "test string");
+	}
 	return MSTAT_OK;
 }
 
-void terminate_func(mgeditorcontext editorContext, mgtoolterminationreason reason, void* toolData)
+void terminate_func(mgeditorcontext editor_context, mgtoolterminationreason reason, void* tool_data)
 {
-	auto pt_s = (plugintool_struct*)toolData;
+	const auto pt_s = static_cast<plugintool_struct*>(tool_data);
 
 	switch (reason)
 	{
 	case MTRM_DONE:
-		//generate(pt_s);
-		mgSendMessage(MMSG_STATUS, "terminate_func");
 		generate(pt_s);
 		break;
 	case MTRM_CANCEL:
-		mgDeleteAllConstructs(editorContext);
+		mgDeleteAllConstructs(editor_context);
+		break;
+	default: 
 		break;
 	}
 

@@ -51,7 +51,7 @@ MGPIDECLARE(mgbool) mgpInit(mgplugin plugin, int* argc, char* argv[])
 }
 
 /// <summary>
-/// free/delete/unregister/unload functions
+/// free/delete/un_register/unload functions
 /// </summary>
 /// <param name="plugin">main plugin</param>
 /// <returns>void</returns>
