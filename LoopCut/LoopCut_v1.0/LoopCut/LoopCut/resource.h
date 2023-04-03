@@ -4,11 +4,10 @@
 //
 #define LOOPCUTBITMAP                   102
 #define LOOPCUTDIALOG                   103
-#define X_EDIT                          1004
-#define Y_EDIT                          1005
-#define Z_EDIT                          1006
-#define IDC_EDIT4                       1007
-#define TEXT_EDIT                       1007
+#define SControl_Number                 1010
+#define EControl_Number                 1011
+#define TControl_Title                  1012
+#define TControl_Label                  1013
 
 // Next default values for new objects
 // 
@@ -16,7 +15,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        105
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1008
+#define _APS_NEXT_CONTROL_VALUE         1014
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

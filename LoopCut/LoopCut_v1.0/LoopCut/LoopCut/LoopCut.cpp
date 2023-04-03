@@ -2,9 +2,6 @@
 
 #include <cstring>
 
-#include "LoopCutFunc.h"
-#include "resource.h"
-
 extern face_loop* f_l;
 
 mgstatus loop_cut_start_func(mgplugintool plugin_tool, void* user_data, void* call_data)
@@ -16,6 +13,7 @@ mgstatus loop_cut_start_func(mgplugintool plugin_tool, void* user_data, void* ca
 	//Initialize the user data record
 	pt_s->db = mgGetActivationDb(cb_data->toolActivation);
 	pt_s->plugin_tool = plugin_tool;
+	pt_s->split = 1;
 	pt_s->dialog = MG_NULL;
 	pt_s->econtext = MG_NULL;
 	pt_s->mode = mgGetModelingMode(pt_s->db);
@@ -67,7 +65,7 @@ mggui create_dialog_func(mgplugintool plugin_tool, void* tool_data)
 int vertex_func(mgeditorcontext editor_context, mgvertexinputdata* vertex_input_data, void* tool_data)
 {
 	auto pt_s = static_cast<PLUGINTOOLSTRUCT*>(tool_data);
-	constexpr int update_ref = 0;
+	const int update_ref = 0;
 
 	const mgmousestate mouse_event = vertex_input_data->mouseEvent;
 	const unsigned int keyboard_flags = vertex_input_data->keyboardFlags;
@@ -244,12 +242,15 @@ void initialize_control_callbacks(plugintool_struct* pt_s)
 
 	if(pt_s->dialog)
 	{
-		mggui gui_item;
+		mggui s_control = mgFindGuiById(pt_s->dialog, SControl_Number);
+		mggui e_control = mgFindGuiById(pt_s->dialog, EControl_Number);
 
-		//if((gui_item = mgFindGuiById(pt_s->dialog, MGID_OK)))
-		//{
-		//	mgSetGuiCallback(gui_item, MGCB_ACTIVATE, generate_callback, static_cast<void*>(pt_s));
-		//}
+		mgSetGuiCallback(e_control, MGCB_ACTIVATE | MGCB_REFRESH, e_control_callback_func, pt_s);
+
+		mgTextSetSpinBuddy(e_control, s_control);
+		
+		//mgTextSetSpinIncrement(e_control, 1.0);
+		mgTextSetTextFormat(e_control, "%.0f");
 	}
 }
 
@@ -263,22 +264,9 @@ mgstatus initialize_dialog(plugintool_struct* pt_s)
 	}
 	mggui gui_item;
 
-	if ((gui_item = mgFindGuiById(pt_s->dialog, X_EDIT)))
+	if ((gui_item = mgFindGuiById(pt_s->dialog, EControl_Number)))
 	{
-		mgTextSetDouble(gui_item, 0.f, "%f");
-	}
-	if ((gui_item = mgFindGuiById(pt_s->dialog, Y_EDIT)))
-	{
-		mgTextSetDouble(gui_item, 0.f, "%f");
-	}
-	if ((gui_item = mgFindGuiById(pt_s->dialog, Z_EDIT)))
-	{
-		mgTextSetDouble(gui_item, 0.f, "%f");
-	}
-
-	if ((gui_item = mgFindGuiById(pt_s->dialog, TEXT_EDIT)))
-	{
-		mgTextSetString(gui_item, "test string");
+		mgTextSetInteger(gui_item, pt_s->split, MG_NULL);
 	}
 	return MSTAT_OK;
 }

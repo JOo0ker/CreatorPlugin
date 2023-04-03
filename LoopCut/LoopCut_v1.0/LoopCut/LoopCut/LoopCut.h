@@ -3,6 +3,9 @@
 #include <mgapiall.h>
 
 #include "ToolHead.h"
+#include "ControlCallbackFunc.h"
+#include "LoopCutFunc.h"
+#include "resource.h"
 
 /**
  * \brief loop set tool start function, especially get the plugin tool struct

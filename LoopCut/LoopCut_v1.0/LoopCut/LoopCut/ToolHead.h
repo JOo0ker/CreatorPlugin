@@ -12,11 +12,10 @@ typedef struct MGEDGE
 
 typedef struct FACELOOP
 {
-	FACELOOP *next, *prev, *first;
-	mgbool is_last_node;
 	mgrec* face;
 	short pos[2];		// coincide vertex's position 
 	mg_edge* coincide_edge;
+	std::vector<mglined> cut_points;
 }face_loop;
 
 typedef enum MOUSEINPPUTMODE
@@ -38,13 +37,15 @@ typedef enum FACLELOOPCASE
 
 typedef struct PLUGINTOOLSTRUCT
 {
+	int split;
 	mgplugintool plugin_tool;
 	mggui dialog;
+	mggui e_control;
+	mggui s_control;
 	mgrec* db;
 	mgcode mode;
 	mgeditorcontext econtext;
 }plugintool_struct;
-
 
 #define PREVIOUS ePrevious
 #define NEXT eNext
