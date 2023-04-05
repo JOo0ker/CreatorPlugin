@@ -1,7 +1,9 @@
 #pragma once
+#include <Windows.h>
 #include <vector>
 
 #include "mgapiall.h"
+#include "resource.h"
 
 typedef struct MGEDGE
 {
@@ -15,7 +17,7 @@ typedef struct FACELOOP
 	mgrec* face;
 	short pos[2];		// coincide vertex's position 
 	mg_edge* coincide_edge;
-	std::vector<mglined> cut_points;
+	std::vector<mglined*>* cut_points;
 }face_loop;
 
 typedef enum MOUSEINPPUTMODE
@@ -31,8 +33,6 @@ typedef enum FACLELOOPCASE
 	normal,
 	match_face_first_time,
 	match_face_second_time,
-	match_previous_face
-
 }faceloopcase;
 
 typedef struct PLUGINTOOLSTRUCT
@@ -43,6 +43,8 @@ typedef struct PLUGINTOOLSTRUCT
 	mggui e_control;
 	mggui s_control;
 	mgrec* db;
+	mgrec* group;
+	mgrec* parent;
 	mgcode mode;
 	mgeditorcontext econtext;
 }plugintool_struct;
@@ -58,4 +60,5 @@ typedef enum
 
 /* Globals */
 static mgresource* resource_;
-static mouseinputmode mouseinputm = mouseinputmode(pick);
+static HHOOK mouse_hook;
+static HHOOK keyboardHook;

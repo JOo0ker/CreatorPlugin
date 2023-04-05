@@ -2,11 +2,11 @@
 
 #include <cstring>
 
-extern face_loop* f_l;
+extern std::vector<face_loop*> f_l;
 
 mgstatus loop_cut_start_func(mgplugintool plugin_tool, void* user_data, void* call_data)
 {
-	const auto pt_s =static_cast<plugintool_struct*>(mgMalloc(sizeof(plugintool_struct)));
+	const auto pt_s = new plugintool_struct;
 
 	const auto cb_data = static_cast<mgeditorcallbackrec*>(call_data);
 
@@ -145,7 +145,10 @@ void pick_func(mgeditorcontext editor_context, mgpickinputdata* pick_input_data,
 			&& (strcmp( mgGetName(rec), "Construction") != 0))
 		{
 			mgDeleteAllConstructs(pt_s->econtext);
-			select_loop(pt_s, rec);
+			if(!loop_cut_main(pt_s, rec))
+			{
+				return;
+			}
 		}
 
 		break;
@@ -157,7 +160,7 @@ void pick_func(mgeditorcontext editor_context, mgpickinputdata* pick_input_data,
 		break;
 
 	default:
-		mgSendMessage(MMSG_TIP, "Unknown pic.");
+		mgSendMessage(MMSG_TIP, "Unknown pick.");
 		break;
 	}
 }
@@ -217,11 +220,12 @@ mgbool init(mgplugin* plugin, mgresource* resource, int* argc, char* argv[])
 
 void exit_loop_cut(mgplugin plugin)
 {
+
 }
 
 void generate(plugintool_struct* pt_s)
 {
-	if (f_l) loop_cut_execute(pt_s);
+	if (!f_l.empty()) loop_cut_execute(pt_s);
 }
 
 static mgstatus generate_callback(mggui gui, 
@@ -245,12 +249,15 @@ void initialize_control_callbacks(plugintool_struct* pt_s)
 		mggui s_control = mgFindGuiById(pt_s->dialog, SControl_Number);
 		mggui e_control = mgFindGuiById(pt_s->dialog, EControl_Number);
 
-		mgSetGuiCallback(e_control, MGCB_ACTIVATE | MGCB_REFRESH, e_control_callback_func, pt_s);
-
+		mgSetGuiCallback(e_control, MGCB_ACTIVATE | MGCB_REFRESH, e_control_callback, pt_s);
 		mgTextSetSpinBuddy(e_control, s_control);
-		
 		//mgTextSetSpinIncrement(e_control, 1.0);
 		mgTextSetTextFormat(e_control, "%.0f");
+
+
+		//mggui radio_select = mgFindGuiById(pt_s->dialog, Radio_Select);
+
+		//mgSetGuiCallback(radio_select, MGCB_ACTIVATE | MGCB_HIDE, action_callback, pt_s);
 	}
 }
 
@@ -268,6 +275,24 @@ mgstatus initialize_dialog(plugintool_struct* pt_s)
 	{
 		mgTextSetInteger(gui_item, pt_s->split, MG_NULL);
 	}
+
+	// Install the global hooks
+	mouse_hook = SetWindowsHookEx(WH_MOUSE_LL, mouse_proc, nullptr, 0);
+	//keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_proc, nullptr, 0);
+
+	//if (keyboardHook == nullptr)
+	//{
+	//	mgSendMessage(MMSG_WARNING, "Keyboard hook install failed.");
+	//}
+
+
+	// Check if the hook is installed successfully
+	if (mouse_hook == nullptr)
+	{
+		mgSendMessage(MMSG_WARNING, "Mouse hook install failed.");
+	}
+
+
 	return MSTAT_OK;
 }
 
@@ -283,15 +308,25 @@ void terminate_func(mgeditorcontext editor_context, mgtoolterminationreason reas
 	case MTRM_CANCEL:
 		mgDeleteAllConstructs(editor_context);
 		break;
-	default: 
+	case MTRM_SELF: 
+		break;
+	case MTRM_SYSTEM: 
 		break;
 	}
 
-	// free
-	if(pt_s)
+	delete pt_s;
+
+
+	// Uninstall the hooks
+	if (mouse_hook != nullptr)
 	{
-		mgFree(pt_s);
+		UnhookWindowsHookEx(mouse_hook);
 	}
+	if (keyboardHook != nullptr)
+	{
+		UnhookWindowsHookEx(keyboardHook);
+	}
+
 }
 
 void loop_cut_execute(plugintool_struct* pt_s)

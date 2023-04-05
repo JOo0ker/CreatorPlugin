@@ -1,6 +1,11 @@
 ﻿#include "ControlCallbackFunc.h"
 
-mgstatus e_control_callback_func(mggui gui, mgcontrolid control_id,
+extern std::vector<face_loop*> f_l;
+extern mgbool get_cut_point(const PLUGINTOOLSTRUCT* pt_s);
+extern mgbool draw_loop_cut_cst(const PLUGINTOOLSTRUCT* pt_s);
+extern mgstatus free_cut_points();
+
+mgstatus e_control_callback(mggui gui, mgcontrolid control_id,
 	mgguicallbackreason callback_reason,
 	void* user_data, void* call_data)
 {
@@ -18,6 +23,9 @@ mgstatus e_control_callback_func(mggui gui, mgcontrolid control_id,
 	}
 	break;
 	case MGCB_REFRESH:
+		free_cut_points();
+		get_cut_point(pt_s);
+		draw_loop_cut_cst(pt_s);
 		mgTextSetInteger(gui, pt_s->split, "%d");
 		break;
 	default:

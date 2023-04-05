@@ -1,54 +1,49 @@
 #include "LoopCutFunc.h"
 
-#include <cstring>
+//#define SHOW_LOOP
 
 static short match_first_face_times = 0;
-face_loop* f_l;
+std::vector<face_loop*> f_l;
+std::vector<face_loop*>::iterator iter_f_l;
 
-mgstatus select_loop(PLUGINTOOLSTRUCT* pt_s, mgrec* v1)
+mgstatus loop_cut_main(PLUGINTOOLSTRUCT* pt_s, mgrec* v1)
 {
 	// distinguish between a single face and a loop face
 	match_first_face_times = 0;
 
-	// first face node
-	free_face_loop();
-	f_l = static_cast<face_loop*>(mgMalloc(sizeof(face_loop)));
+	// get parent
+	pt_s->parent = mgGetParent(mgGetParent(v1));
 
-	// v1
-	f_l->face = mgGetParent(v1);
-	const mgcoord3d v1_coord = get_vertex_coord(v1);
-
-	// find the selected vertex position
-	for (f_l->pos[0] = 1; ; f_l->pos[0]++)
+	// get the nearest group 
+	mgrec* group = pt_s->parent;
+	while (
+		group // mgGetParent(Db) => MG_NULL
+		&& mgGetCode(group) != fltGroup)
 	{
-		mgcoord3d temp = get_vertex_coord(mgGetChildNth(f_l->face, f_l->pos[0]));
-		if(mgCoord3dEqual(&v1_coord, &temp))
-		{
-			break;
-		}
+		group = mgGetParent(group);
 	}
 
-	// v2		NOTE: the vertex represented by the edge is always the previous vertex.
-	mgrec* v2 = get_loop_vtx(v1, NEXT, &f_l->pos[1]);
+	switch (mgGetCode(group))
+	{
+	case fltGroup:
+		mgSendMessage(MMSG_TIP, " The group name is : %1s .", mgGetName(group));
+		break;
 
-	// edge second
-	const auto edge_second = static_cast<mg_edge*>(mgMalloc(sizeof(mg_edge)));
-	edge_second->v1 = v1;
-	edge_second->v2 = v2;
-	edge_second->edge_shared_count = 1;
+	default:
+		mgSendMessage(MMSG_TIP, "Please make sure that you have a GROUP node.");
+		return MG_FALSE;
+	}
+	pt_s->group = group;
 
-	f_l->coincide_edge = edge_second;
-
-	// prev/next/first
-	f_l->prev = MG_NULL;
-	f_l->next = MG_NULL;
-	f_l->first = f_l;
-
-	// last node
-	f_l->is_last_node = MG_TRUE;
-
+	free_face_loop();
+	init_face_loop(v1);
 	if (!get_face_loop(pt_s)) return MG_FALSE;
-	//show_face_fool();
+
+#ifdef SHOW_LOOP
+	show_face_loop();
+#endif
+
+	get_cut_point(pt_s);
 	draw_loop_cut_cst(pt_s);
 
 	return MG_TRUE;
@@ -81,8 +76,6 @@ mgrec* get_loop_vtx(mgrec* v, const loop_dire dire, short* pos)
 				case NEXT:
 					m_v_p = (i + 1) <= total ? (i + 1) : 1;
 					break;
-				default:
-					break;
 				}
 
 				if (pos) *pos = m_v_p;
@@ -94,46 +87,25 @@ mgrec* get_loop_vtx(mgrec* v, const loop_dire dire, short* pos)
 	return v;
 }
 
-mgbool get_face_loop(PLUGINTOOLSTRUCT* pt_s)
+mgbool get_face_loop(const PLUGINTOOLSTRUCT* pt_s)
 {
-	face_loop* f_l_t = f_l->first;
-
-	// get the nearest group 
-	mgrec* group = mgGetParent(f_l_t->face);
-	while (
-		group // mgGetParent(Db) => MG_NULL
-		&& mgGetCode(group) != fltGroup)
-	{
-		group = mgGetParent(group);
-	}
-
-	switch (mgGetCode(group))
-	{
-	case fltGroup:
-		mgSendMessage(MMSG_TIP, " The group name is : %1s .", mgGetName(group));
-		break;
-
-	default:
-		mgSendMessage(MMSG_TIP, "Please make sure that you have a GROUP node.");
-		return MG_FALSE;
-	}
+	iter_f_l = f_l.begin();
 
 	// walk the group and get the face loop
 	while (true)
 	{
-		mgWalk(group,
+		mgWalk(pt_s->group,
 			mgw_pre_check_edge_in_polygon,
 			mgw_post_check_edge_in_polygon,
-			f_l_t,
+			MG_NULL,
 			MWALK_ON | MWALK_VERTEX);
-		//show_face_fool(f_l_t);
 
-		if (f_l_t->first->prev)
+		if (match_first_face_times == 2)
 		{// got a whole loop
 			break;
 		}
 
-		switch (f_l_t->coincide_edge->edge_shared_count)
+		switch ((*iter_f_l)->coincide_edge->edge_shared_count)
 		{
 		case 0:// invalid selected face
 			return MG_FALSE;
@@ -142,7 +114,7 @@ mgbool get_face_loop(PLUGINTOOLSTRUCT* pt_s)
 			return MG_TRUE;
 
 		case 2:// standard edge of face
-			f_l_t = f_l_t->next;
+			++iter_f_l;
 			break;
 
 		default:// other invalid face
@@ -153,7 +125,7 @@ mgbool get_face_loop(PLUGINTOOLSTRUCT* pt_s)
 	return MG_TRUE;
 }
 
-mgbool check_edge_in_polygon(mgrec* p, face_loop* f_l_t, short* pos)
+mgbool check_edge_in_polygon(mgrec* p, const face_loop* f_l_t, short* pos)
 {
 	// the source edge
 	const mg_edge* e = f_l_t->coincide_edge;
@@ -189,10 +161,8 @@ mgbool check_edge_in_polygon(mgrec* p, face_loop* f_l_t, short* pos)
 	// if find a vertex in the target polygon that has the same coordinates as the 1st vertex of the source edge
 	if (b_conform)
 	{
-		mgbool b_conform2 = MG_FALSE;
-
 		// restore the position of coincide edge vertices  (i: from 0 to 3)
-		pos[0] = i ;
+		pos[0] = i;
 
 		// get the previous vertex of founded vertex
 		mgcoord3d p_vc_near = get_vertex_coord(
@@ -213,48 +183,40 @@ mgbool check_edge_in_polygon(mgrec* p, face_loop* f_l_t, short* pos)
 		{
 			return MG_TRUE;
 		}
-
 	}
 	return MG_FALSE;
 }
 
 mgbool mgw_pre_check_edge_in_polygon(mgrec* db, mgrec* parent, mgrec* rec, void* user_data)
 {
-	if(mgGetCode(rec) == fltPolygon)
+	if (mgGetCode(rec) != fltPolygon
+		|| mgCountChild(rec) != 4// match an invalid polygon that does not have exactly 4 vertices as its components.
+		|| (rec == (*iter_f_l)->face)
+		)
 	{
-		if (mgCountChild(rec) != 4)
-		{// match an invalid polygon that does not have exactly 4 vertices as its components.
-			//mgSendMessage(MMSG_STATUS, "Catch the not 4 vtx polygon.");
-			return MG_TRUE;
+		return MG_TRUE;
+	}
+
+	short pos[2]{ 0,0 };
+
+	if (check_edge_in_polygon(rec, *iter_f_l, pos))
+	{// found a matching edge
+		const faceloopcase fl_case = append_face_loop_node(rec, pos);
+		switch (fl_case)
+		{
+		case faceloopcase::unknown:
+			break;
+		case faceloopcase::normal:
+			(*iter_f_l)->coincide_edge->edge_shared_count += 1;
+			break;
+		case faceloopcase::match_face_first_time:
+			break;
+		case faceloopcase::match_face_second_time:
+			(*iter_f_l)->coincide_edge->edge_shared_count += 1;
+			break;
 		}
 
-		const auto f_l_t = static_cast<face_loop*>(user_data);
-
-		short pos[2]{ 0,0 };
-
-		if(check_edge_in_polygon(rec, f_l_t, pos))
-		{// found a matching edge
-			const faceloopcase fl_case = append_face_loop_node(rec, f_l_t, pos);
-			switch (fl_case)
-			{
-			case faceloopcase::unknown:
-				break;
-			case faceloopcase::normal:
-				f_l_t->coincide_edge->edge_shared_count += 1;
-				break;
-			case faceloopcase::match_face_first_time:
-				break;
-			case faceloopcase::match_face_second_time:
-				f_l_t->coincide_edge->edge_shared_count += 1;
-				break;
-			case faceloopcase::match_previous_face:
-				break;
-			default: 
-				break;
-			}
-
-			return MG_TRUE;
-		}
+		return MG_TRUE;
 	}
 	return MG_TRUE;
 }
@@ -276,9 +238,9 @@ mgcoord3d get_vertex_coord(mgrec* vtx)
 	return mgCoord3dZero();
 }
 
-faceloopcase append_face_loop_node(mgrec* p, face_loop* f_l_t, const short* pos)
+faceloopcase append_face_loop_node(mgrec* p, const short* pos)
 {
-	if(strcmp(mgGetName(p), mgGetName(f_l_t->first->face)) == 0) // the same as first face
+	if(p == f_l.front()->face) // the same as first face
 	{
 		match_first_face_times += 1;
 
@@ -288,8 +250,6 @@ faceloopcase append_face_loop_node(mgrec* p, face_loop* f_l_t, const short* pos)
 			return faceloopcase::match_face_first_time;
 
 		case 2:
-			f_l_t->first->prev = f_l_t;
-			f_l_t->next = f_l_t->first;
 			return faceloopcase::match_face_second_time;
 
 		default:
@@ -297,21 +257,14 @@ faceloopcase append_face_loop_node(mgrec* p, face_loop* f_l_t, const short* pos)
 		}
 	}
 
-	if(f_l_t->prev
-		&& (strcmp(mgGetName(p), mgGetName(f_l_t->face)) == 0) // the same as current face
-		)
-	{
-		return faceloopcase::match_previous_face;
-	}
-
 	// create a new face loop node to restore the face
-	auto* new_face_loop_node = static_cast<face_loop*>(mgMalloc(sizeof(face_loop)));
+	const auto new_face_loop_node = new face_loop;
 
 	// create a new edge node to restore edge
-	auto* new_edge = static_cast<mg_edge*>(mgMalloc(sizeof(mg_edge)));
+	const auto new_edge = new mg_edge;
 
+	// the opposite edge
 	short anti_pos[2];
-
 	another_edge_pos(pos, anti_pos);
 
 	new_edge->v1 = mgGetChildNth(p, anti_pos[0]);
@@ -322,78 +275,114 @@ faceloopcase append_face_loop_node(mgrec* p, face_loop* f_l_t, const short* pos)
 	new_face_loop_node->pos[0] = pos[0];
 	new_face_loop_node->pos[1] = pos[1];
 	new_face_loop_node->face = p;
-	new_face_loop_node->first = f_l_t->first;
-	new_face_loop_node->prev = f_l_t;
-	new_face_loop_node->next = MG_NULL;
-	new_face_loop_node->is_last_node = MG_TRUE;
 
-	f_l_t->next = new_face_loop_node;
-	f_l_t->is_last_node = MG_FALSE;
+	sort_pos(new_face_loop_node->pos);
+
+	const int distance = std::distance(f_l.begin(), iter_f_l);
+
+	f_l.push_back(new_face_loop_node);
+
+	iter_f_l = f_l.begin() + distance;
 
 	return faceloopcase::normal;
 }
 
+mgstatus init_face_loop(mgrec* v1)
+{
+	const auto f_l_first = new face_loop;
+
+	// v1
+	f_l_first->face = mgGetParent(v1);
+
+	// find the selected vertex position
+	for (f_l_first->pos[0] = 1; ; f_l_first->pos[0]++)
+	{
+		if(v1 == mgGetChildNth(f_l_first->face, f_l_first->pos[0]))
+		{
+			break;
+		}
+	}
+
+	// v2		NOTE: the vertex represented by the edge is always the previous vertex.
+	mgrec* v2 = get_loop_vtx(v1, NEXT, &f_l_first->pos[1]);
+
+	// edge
+	const auto edge = new mg_edge;
+	edge->v1 = v1;
+	edge->v2 = v2;
+	edge->edge_shared_count = 1;
+
+	f_l_first->coincide_edge = edge;
+
+	f_l.push_back(f_l_first);
+
+	return MG_TRUE;
+}
+
+mgstatus sort_pos(short* pos)
+{
+	const short next_pos = (pos[0] + 1) > 4 ? 1 : (pos[0] + 1) ;
+	
+	if(pos[1] != next_pos)
+	{// exchange the position
+		const short temp = pos[0];
+		pos[0] = pos[1];
+		pos[1] = temp;
+	}
+
+	return MG_TRUE;
+}
+
 mgstatus free_face_loop()
 {
-	// nullptr input
-	if (!f_l) return MG_TRUE;
+	// empty input
+	if (f_l.empty()) return MG_TRUE;
 
-	// free from the beginning
-	face_loop* f_l_t = f_l->first;
+	auto iter_free = f_l.begin();
 
-	// restore the current node
-	face_loop* temp = MG_NULL;
+	free_cut_points();
 
-	// the last face
-	mgbool is_last = MG_FALSE;
-	
-	// free all exist node
-	do 
+	while(iter_free != f_l.end())
 	{
-		if (!f_l_t) return MSTAT_OK;
-		is_last = f_l_t->is_last_node;
-
-		if (f_l_t->coincide_edge)
-		{
-			f_l_t->coincide_edge->v1 = MG_NULL;
-			f_l_t->coincide_edge->v2 = MG_NULL;
-			mgFree(f_l_t->coincide_edge);
-		}
-		if (f_l_t->face)
-		{
-			f_l_t->face = MG_NULL;
-		}
-
-
-		if (f_l_t->next)
-		{
-			temp = f_l_t->next;
-		}
-
-		mgFree(f_l_t);
-		f_l_t = temp;
-	} while (!is_last);
-
-	f_l = MG_NULL;
+		delete (*iter_free)->coincide_edge;
+		delete (*iter_free);
+		++iter_free;
+	}
+	f_l.clear();
 	return MSTAT_OK;
 }
 
-mgbool show_face_fool()
+mgstatus free_cut_points()
+{
+	// empty input
+	if (f_l.empty()) return MG_TRUE;
+
+	auto iter_free = f_l.begin();
+	while (iter_free != f_l.end())
+	{
+		auto iter_free_line = (*iter_free)->cut_points->begin();
+		while (iter_free_line != (*iter_free)->cut_points->end())
+		{
+			delete (*iter_free_line);
+			++iter_free_line;
+		}
+		(*iter_free)->cut_points->clear();
+		delete (*iter_free)->cut_points;
+		++iter_free;
+	}
+	return MSTAT_OK;
+}
+
+mgbool show_face_loop()
 {
 	mgSendMessage(MMSG_STATUS, "-----Show face loop node-----");
-	const face_loop* f_l_t = f_l->first;
-	mgbool is_last = MG_FALSE;
-
-	do
+	iter_f_l = f_l.begin();
+	while(iter_f_l != f_l.end())
 	{
-		is_last = f_l_t->is_last_node;
-		mgSendMessage(MMSG_STATUS, "Face name: %1s", mgGetName(f_l_t->face));
-		if(f_l_t->next)
-			f_l_t = f_l_t->next;
-	} while (!is_last);
-
+		mgSendMessage(MMSG_STATUS, "Face name: %1s", mgGetName((*iter_f_l)->face));
+		++iter_f_l;
+	}
 	mgSendMessage(MMSG_STATUS, "------------end------------");
-
 	return MG_TRUE;
 }
 
@@ -423,182 +412,164 @@ mgbool another_edge_pos(const short* pos, short* anti_pos)
 	return MG_TRUE;
 }
 
-mgbool draw_loop_cut_cst(PLUGINTOOLSTRUCT* pt_s)
+mgbool get_cut_point(const PLUGINTOOLSTRUCT* pt_s)
 {
-	const face_loop* f_l_t = f_l->first;
-	mgbool is_last = f_l_t->is_last_node;
-
-	if (!f_l_t->face)
+	iter_f_l = f_l.begin();
+	while (iter_f_l != f_l.end())
 	{
-		return MG_FALSE;
-	}
-
-	// isolated face
-	if(is_last)
-	{
-		mgrec* v11 = f_l_t->coincide_edge->v1;
-		const mgcoord3d v11_coord = get_vertex_coord(v11);
-
-		mgrec* v12 = f_l_t->coincide_edge->v2;
-		const mgcoord3d v12_coord = get_vertex_coord(v12);
-
-		short anti_pos[2];
-		another_edge_pos(f_l_t->pos, anti_pos);
-
-		mgrec* v21 = mgGetChildNth(f_l_t->face, anti_pos[0]);
-		const mgcoord3d v21_coord = get_vertex_coord(v21);
-
-		mgrec* v22 = mgGetChildNth(f_l_t->face, anti_pos[1]);
-		const mgcoord3d v22_coord = get_vertex_coord(v22);
-
-		const mgcoord3d v10_coord = mgCoord3dLerp(&v11_coord, &v12_coord, 0.5);
-		const mgcoord3d v20_coord = mgCoord3dLerp(&v21_coord, &v22_coord, 0.5);
-
-		draw_edge_node_cst(pt_s, v10_coord, v20_coord);
-		return MG_TRUE;
-	}
-
-	// more than one face
-	do
-	{
-		is_last = f_l_t->is_last_node;
-		if (f_l_t->next)
+		if ((*iter_f_l)->coincide_edge->edge_shared_count > 2)
 		{
-			mgrec* v11 = f_l_t->coincide_edge->v1;
-			mgcoord3d v11_coord = get_vertex_coord(v11);
-
-			mgrec* v12 = f_l_t->coincide_edge->v2;
-			mgcoord3d v12_coord = get_vertex_coord(v12);
-
-			mgrec* v21 = f_l_t->next->coincide_edge->v1;
-			mgcoord3d v21_coord = get_vertex_coord(v21);
-
-			mgrec* v22 = f_l_t->next->coincide_edge->v2;
-			mgcoord3d v22_coord = get_vertex_coord(v22);
-
-			const mgcoord3d v10_coord = mgCoord3dLerp(&v11_coord, &v12_coord, 0.5);
-			const mgcoord3d v20_coord = mgCoord3dLerp(&v21_coord, &v22_coord, 0.5);
-
-			draw_edge_node_cst(pt_s, v10_coord, v20_coord);
-
-			f_l_t = f_l_t->next;
+			return MG_FALSE;
 		}
-		
-	} while (!is_last);
+
+		short anti_pos[2] = { 0, 0 };
+		another_edge_pos((*iter_f_l)->pos, anti_pos);
+
+		mgrec* f_v[5]{ nullptr };
+		mgcoord3d f_v_coord[5]{ {0,0,0} };
+
+		f_v[0] = MG_NULL;
+		f_v[1] = mgGetChildNth((*iter_f_l)->face, 1);
+		f_v[2] = mgGetChildNth((*iter_f_l)->face, 2);
+		f_v[3] = mgGetChildNth((*iter_f_l)->face, 3);
+		f_v[4] = mgGetChildNth((*iter_f_l)->face, 4);
+
+		f_v_coord[0] = mgCoord3dZero();
+		f_v_coord[1] = get_vertex_coord(f_v[1]);
+		f_v_coord[2] = get_vertex_coord(f_v[2]);
+		f_v_coord[3] = get_vertex_coord(f_v[3]);
+		f_v_coord[4] = get_vertex_coord(f_v[4]);
+
+		const auto temp = new std::vector<mglined*>;
+
+		for(int i = 0; i < pt_s->split; i++)
+		{
+			const double amount = (1.0 / (pt_s->split + 1)) * (i + 1);
+
+			auto cut_line = new mglined;
+			cut_line->p1 = mgCoord3dLerp(&f_v_coord[(*iter_f_l)->pos[0]], &f_v_coord[(*iter_f_l)->pos[1]], amount);
+			cut_line->p2 = mgCoord3dLerp(&f_v_coord[anti_pos[1]], &f_v_coord[anti_pos[0]], amount);
+			temp->push_back(cut_line);
+		}
+		(*iter_f_l)->cut_points = temp;
+		++iter_f_l;
+	}
 
 	return MG_TRUE;
 }
 
-mgbool draw_edge_node_cst(PLUGINTOOLSTRUCT* pt_s, mgcoord3d v10_coord, mgcoord3d v20_coord)
+mgbool draw_loop_cut_cst(const PLUGINTOOLSTRUCT* pt_s)
+{
+	mgDeleteAllConstructs(pt_s->econtext);
+	if (f_l.empty()) return MG_FALSE;
+	iter_f_l = f_l.begin();
+
+	while(iter_f_l != f_l.end())
+	{
+		if ((*iter_f_l)->coincide_edge->edge_shared_count > 2)
+		{
+			return MG_FALSE;
+		}
+
+		auto iter_e = (*iter_f_l)->cut_points->begin();
+		
+		while (iter_e != (*iter_f_l)->cut_points->end())
+		{
+			draw_edge_node_cst(pt_s, (*iter_e)->p1, (*iter_e)->p2);
+			++iter_e;
+		}
+		++iter_f_l;
+	}
+
+	return MG_TRUE;
+}
+
+mgbool draw_edge_node_cst(const PLUGINTOOLSTRUCT* pt_s, mgcoord3d v10_coord, mgcoord3d v20_coord)
 {
 	const mgrec* cts_e = mgNewConstructEdge(pt_s->econtext, &v10_coord, &v20_coord);
 
 	return cts_e ? MG_TRUE : MG_FALSE;
 }
 
-mgbool cut_face_loop(PLUGINTOOLSTRUCT* pt_s)
+mgbool cut_face_loop(const PLUGINTOOLSTRUCT* pt_s)
 {
-	const face_loop* f_l_t = f_l->first;
-	if(f_l_t->coincide_edge->edge_shared_count > 2)
+	iter_f_l = f_l.begin();
+
+	while(iter_f_l != f_l.end())
 	{
-		return MG_FALSE;
-	}
-
-	mgbool is_last;
-
-	do
-	{
-		is_last = f_l_t->is_last_node;
-
-		cut_face_with_2_edge_point(f_l_t, pt_s);
-		if(f_l_t->next)
+		if ((*iter_f_l)->coincide_edge->edge_shared_count > 2)
 		{
-			f_l_t = f_l_t->next;
+			return MG_FALSE;
 		}
-		
-	} while (!is_last);
+
+		split_face(pt_s, *iter_f_l);
+
+		++iter_f_l;
+	}
 
 	mgDeleteAllConstructs(pt_s->econtext);
 
 	return MG_TRUE;
 }
-
-mgbool cut_face_with_2_edge_point(const face_loop* f_l_t, PLUGINTOOLSTRUCT* pt_s)
+mgbool split_face(const PLUGINTOOLSTRUCT* pt_s, const face_loop* f_l_n)
 {
-	if(f_l_t->coincide_edge->edge_shared_count > 2)
+	auto iter_e = f_l_n->cut_points->begin();
+
+	mgrec* f_v[5]{
+		MG_NULL,
+		mgGetChildNth(f_l_n->face, 1),
+		mgGetChildNth(f_l_n->face, 2),
+		mgGetChildNth(f_l_n->face, 3),
+		mgGetChildNth(f_l_n->face, 4)
+	};
+
+	short anti_pos[2] = { 0,0 };
+	another_edge_pos(f_l_n->pos, anti_pos);
+
+	mgcoord3d f_v_coord[5] = {
+		mgCoord3dZero(),
+		mgCoord3dZero(),
+		mgCoord3dZero(),
+		get_vertex_coord(f_v[f_l_n->pos[0]]),
+		get_vertex_coord(f_v[anti_pos[1]])
+	};
+
+	std::vector<mgrec*> new_polygons;
+
+	while (iter_e != f_l_n->cut_points->end())
 	{
-		return MG_FALSE;
+		mgrec* new_p = mgDuplicateEx(f_l_n->face, MDUP_DERIVEDNAMES);
+		new_polygons.push_back(new_p);
+		mgAttach(pt_s->parent, new_p);
+		mgEditorAppendUndoForCreate(pt_s->econtext, new_p);
+
+		f_v_coord[1] = f_v_coord[4];
+		f_v_coord[2] = f_v_coord[3];
+		f_v_coord[3] = (*iter_e)->p1;
+		f_v_coord[4] = (*iter_e)->p2;
+
+		for(int i = 1; i < 5; i++)
+		{
+			mgSetVtxCoord(mgGetChildNth(new_p, i), f_v_coord[i].x, f_v_coord[i].y, f_v_coord[i].z);
+		}
+		++iter_e;
 	}
 
-	// make a copy of the polygon and attach it to the same parent.
-	mgrec* new_p1 = mgDuplicateEx(f_l_t->face, MDUP_DERIVEDNAMES);
-	mgrec* new_p2 = mgDuplicateEx(f_l_t->face, MDUP_DERIVEDNAMES);
+	mgrec* new_p = mgDuplicateEx(f_l_n->face, MDUP_DERIVEDNAMES);
+	new_polygons.push_back(new_p);
+	mgAttach(pt_s->parent, new_p);
+	mgEditorAppendUndoForCreate(pt_s->econtext, new_p);
 
-	mgAttach(mgGetParent(f_l_t->face), new_p1);
-	mgAttach(mgGetParent(f_l_t->face), new_p2);
+	f_v_coord[1] = f_v_coord[4];
+	f_v_coord[2] = f_v_coord[3];
+	f_v_coord[3] = get_vertex_coord(f_v[f_l_n->pos[1]]);
+	f_v_coord[4] = get_vertex_coord(f_v[anti_pos[0]]);
 
-	mgEditorAppendUndoForCreate(pt_s->econtext, new_p1);
-	mgEditorAppendUndoForCreate(pt_s->econtext, new_p2);
+	for (int i = 1; i < 5; i++)
+	{
+		mgSetVtxCoord(mgGetChildNth(new_p, i), f_v_coord[i].x, f_v_coord[i].y, f_v_coord[i].z);
+	}
 
-	mgEditorAppendUndoForDelete(pt_s->econtext, f_l_t->face);
-
-	short anti_pos[2] = { 0 };
-	
-	another_edge_pos(f_l_t->pos, anti_pos);
-
-	mgrec* f_v[5]{nullptr};
-	mgcoord3d f_v_coord[5]{{0,0,0}};
-
-	// create first polygon
-	f_v[0] = MG_NULL;
-	f_v[1] = mgGetChildNth(new_p1, 1);
-	f_v[2] = mgGetChildNth(new_p1, 2);
-	f_v[3] = mgGetChildNth(new_p1, 3);
-	f_v[4] = mgGetChildNth(new_p1, 4);
-
-	f_v_coord[0] = mgCoord3dZero();
-	f_v_coord[1] = get_vertex_coord(f_v[1]);
-	f_v_coord[2] = get_vertex_coord(f_v[2]);
-	f_v_coord[3] = get_vertex_coord(f_v[3]);
-	f_v_coord[4] = get_vertex_coord(f_v[4]);
-
-		/* v1 */
-	//f_v[f_l->pos[0]];
-		/* v2 */
-	//f_v[anti_pos[1]];
-		/* v3 */
-	const mgcoord3d cut_point1 = mgCoord3dLerp(&f_v_coord[f_l_t->pos[0]], &f_v_coord[f_l_t->pos[1]], 0.5);
-		/* v4 */
-	const mgcoord3d cut_point2 = mgCoord3dLerp(&f_v_coord[anti_pos[0]], &f_v_coord[anti_pos[1]], 0.5);
-
-	mgSetVtxCoord(f_v[f_l_t->pos[1]], cut_point1.x, cut_point1.y, cut_point1.z);
-	mgSetVtxCoord(f_v[anti_pos[0]], cut_point2.x, cut_point2.y, cut_point2.z);
-
-
-	// create second polygon
-	f_v[0] = MG_NULL;
-	f_v[1] = mgGetChildNth(new_p2, 1);
-	f_v[2] = mgGetChildNth(new_p2, 2);
-	f_v[3] = mgGetChildNth(new_p2, 3);
-	f_v[4] = mgGetChildNth(new_p2, 4);
-
-	f_v_coord[0] = mgCoord3dZero();
-	f_v_coord[1] = get_vertex_coord(f_v[1]);
-	f_v_coord[2] = get_vertex_coord(f_v[2]);
-	f_v_coord[3] = get_vertex_coord(f_v[3]);
-	f_v_coord[4] = get_vertex_coord(f_v[4]);
-
-		/* v1 */
-	//f_v[f_l->pos[1]];
-		/* v2 */
-	//f_v[anti_pos[0]];
-		/* v3 */
-	//cut_point2;
-		/* v4 */
-	//cut_point1;
-
-	mgSetVtxCoord(f_v[f_l_t->pos[0]], cut_point1.x, cut_point1.y, cut_point1.z);
-	mgSetVtxCoord(f_v[anti_pos[1]], cut_point2.x, cut_point2.y, cut_point2.z);
-
+	mgEditorAppendUndoForDelete(pt_s->econtext, f_l_n->face);
 	return MG_TRUE;
 }
