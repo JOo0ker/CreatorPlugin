@@ -40,9 +40,6 @@ static mgbool init_all_tools(mgplugin* plugin, mgresource* resource, int* argc, 
 /// <returns>MG_TRUE/MG_FALSE</returns>
 MGPIDECLARE(mgbool) mgpInit(mgplugin plugin, int* argc, char* argv[])
 {
-	creator_hwnd = GetForegroundWindow();
-	creator_thread_id = GetWindowThreadProcessId(creator_hwnd, nullptr);
-
 	module_handle = mgGetModuleHandle(plugin);
 	resource = mgLoadResource(module_handle);
 

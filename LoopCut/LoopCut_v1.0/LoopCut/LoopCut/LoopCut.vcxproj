@@ -36,6 +36,7 @@
     <ResourceCompile Include="LoopCut.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="LoopCutIco.bmp" />
     <Image Include="Lv_ico.bmp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

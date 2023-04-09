@@ -5,6 +5,15 @@
 #include "mgapiall.h"
 #include "resource.h"
 
+#pragma region define
+#define PREVIOUS ePrevious
+#define NEXT eNext
+#define MOVE_SENSITIVITY 2000
+#define SPLIT_NUM_SENSITIVITY 20
+
+#pragma endregion
+
+
 typedef struct MGEDGE
 {
 	mgrec* v1;
@@ -14,7 +23,7 @@ typedef struct MGEDGE
 
 typedef struct CUTPOINTSDATA
 {
-	mglined* cut_points_on_edge;
+	mglined cut_points_on_edge[2];
 	std::vector<mglined*>* cut_points;
 }cut_points_data;
 
@@ -49,9 +58,6 @@ typedef struct PLUGINTOOLSTRUCT
 	mgeditorcontext econtext;
 }plugintool_struct;
 
-#define PREVIOUS ePrevious
-#define NEXT eNext
-
 typedef enum
 {
 	ePrevious,
@@ -68,11 +74,6 @@ typedef enum
 /* Globals */
 static mgmouseinputtype current_mouse_input = MMSI_NOINPUT;
 static mgresource* resource_;
-static HHOOK mouse_hook;
-static HHOOK keyboardHook;
-static HWND creator_hwnd;
-static DWORD creator_thread_id;
-
 
 #pragma region define_func
 

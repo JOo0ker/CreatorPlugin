@@ -275,6 +275,7 @@ faceloopcase append_face_loop_node(mgrec* p, const short* pos)
 	new_face_loop_node->pos[0] = anti_pos[0];
 	new_face_loop_node->pos[1] = anti_pos[1];
 	new_face_loop_node->face = p;
+	new_face_loop_node->cut_points_data.cut_points = nullptr;
 
 	sort_pos(new_face_loop_node->pos);
 
@@ -316,6 +317,8 @@ mgstatus init_face_loop(mgrec* v1)
 	// Set the coincidence edge of the face loop.
 	f_l_first->coincide_edge = edge;
 
+	f_l_first->cut_points_data.cut_points = nullptr;
+
 	// Add the face loop to the vector of face loops.
 	f_l.push_back(f_l_first);
 
@@ -341,7 +344,7 @@ mgstatus sort_pos(short* pos)
 mgstatus free_face_loop()
 {
 	// empty input
-	if (f_l.empty()) return MG_TRUE;
+	if (f_l.empty()) return MSTAT_OK;
 
 	auto iter_free = f_l.begin();
 
@@ -360,12 +363,20 @@ mgstatus free_face_loop()
 mgstatus free_cut_points()
 {
 	// empty input
-	if (f_l.empty()) return MG_TRUE;
+	if (f_l.empty())
+	{
+		return MSTAT_OK;
+	}
 
 	auto iter_free = f_l.begin();
 	while (iter_free != f_l.end())
 	{
-		delete (*iter_free)->cut_points_data.cut_points_on_edge;
+		if((*iter_free)->cut_points_data.cut_points == nullptr
+			|| (*iter_free)->cut_points_data.cut_points->empty())
+		{
+			++iter_free;
+			continue;
+		}
 		auto iter_free_line = (*iter_free)->cut_points_data.cut_points->begin();
 		while (iter_free_line != (*iter_free)->cut_points_data.cut_points->end())
 		{
@@ -456,7 +467,7 @@ mgbool get_cut_point(const PLUGINTOOLSTRUCT* pt_s)
 
 		// Create a vector to store the cut points and an array to store the cut points on the edge being cut.
 		const auto temp_cut_points = new std::vector<mglined*>;
-		const auto temp_cut_points_on_edge = new mglined[2];
+		const auto temp_cut_points_on_edge = (*iter_f_l)->cut_points_data.cut_points_on_edge;
 
 		temp_cut_points_on_edge[0] = mgMakeLine(&f_v_coord[(*iter_f_l)->pos[0]], &f_v_coord[(*iter_f_l)->pos[1]]);
 		temp_cut_points_on_edge[1] = mgMakeLine(&f_v_coord[anti_pos[1]], &f_v_coord[anti_pos[0]]);
@@ -476,7 +487,6 @@ mgbool get_cut_point(const PLUGINTOOLSTRUCT* pt_s)
 
 		// Calculate the amount to interpolate between the two edges.
 		(*iter_f_l)->cut_points_data.cut_points = temp_cut_points;
-		(*iter_f_l)->cut_points_data.cut_points_on_edge = temp_cut_points_on_edge;
 		(*iter_f_l)->offset[total_offset] = 0.0;
 		(*iter_f_l)->offset[last_offset] = 0.0;
 		(*iter_f_l)->offset[current_offset] = 0.0;
@@ -523,24 +533,26 @@ mgbool draw_edge_node_cst(const PLUGINTOOLSTRUCT* pt_s, mgcoord3d v10_coord, mgc
 
 mgbool cut_face_loop(const PLUGINTOOLSTRUCT* pt_s)
 {
-	iter_f_l = f_l.begin();
+	auto iter = f_l.begin();
 
-	while(iter_f_l != f_l.end())
+	while(iter != f_l.end())
 	{
-		if ((*iter_f_l)->coincide_edge->edge_shared_count > 2)
+		if ((*iter)->coincide_edge->edge_shared_count > 2)
 		{
 			return MG_FALSE;
 		}
 
-		split_face(pt_s, *iter_f_l);
+		split_face(pt_s, *iter);
 
-		++iter_f_l;
+		++iter;
 	}
 
 	return MG_TRUE;
 }
 mgbool split_face(const PLUGINTOOLSTRUCT* pt_s, const face_loop* f_l_n)
 {
+	if (f_l_n->cut_points_data.cut_points->empty()) return MG_FALSE;
+
 	// Create an iterator for the cut points.
 	auto iter_e = f_l_n->cut_points_data.cut_points->begin();
 
@@ -631,7 +643,7 @@ mgbool move_cut_point(const PLUGINTOOLSTRUCT* pt_s, const double delta)
 	while(iter != f_l.end())
 	{
 		// Apply an offset to the current object's offsets.
-		(*iter)->offset[current_offset] = delta / 1000.0;
+		(*iter)->offset[current_offset] = delta / MOVE_SENSITIVITY;
 
 		// If the offset is close to zero, set the last offset to zero.
 		if (abs((delta - 0.0)) < 0.0000001)

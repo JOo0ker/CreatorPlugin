@@ -183,9 +183,9 @@ void point_func(mgeditorcontext editor_context, mgpointinputdata* point_input_da
 		}
 
 		// increase number of split
-		if(GetKeyState(VK_LSHIFT) < 0)
+		if(keyboard_flags == MKB_SHIFTKEY)
 		{
-			increase_number_of_split(pt_s, static_cast<int>(this_point.x - first_point.x) / 20);
+			increase_number_of_split(pt_s, static_cast<int>(this_point.x - first_point.x) / SPLIT_NUM_SENSITIVITY);
 			break;
 		}
 
@@ -367,26 +367,6 @@ mgstatus initialize_dialog(plugintool_struct* pt_s)
 		mgTextSetInteger(gui_item, pt_s->split, MG_NULL);
 	}
 
-
-	//hooks
-	/*if(mouse_hook == nullptr)
-	{
-		mouse_hook = SetWindowsHookEx(WH_MOUSE_LL, mouse_proc, nullptr, 0);
-	}
-	if (mouse_hook == nullptr)
-	{
-		mgSendMessage(MMSG_WARNING, "Mouse hook install failed.");
-	}
-
-	if(keyboardHook == nullptr)
-	{
-		keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_proc, nullptr, 0);
-	}
-	if (keyboardHook == nullptr)
-	{
-		mgSendMessage(MMSG_WARNING, "Keyboard hook install failed.");
-	}*/
-
 	return MSTAT_OK;
 }
 
@@ -415,17 +395,6 @@ void terminate_func(mgeditorcontext editor_context, mgtoolterminationreason reas
 	delete pt_s;
 
 	mgDeleteAllConstructs(editor_context);
-
-	// Uninstall the hooks
-	if (mouse_hook != nullptr)
-	{
-		UnhookWindowsHookEx(mouse_hook);
-	}
-	if (keyboardHook != nullptr)
-	{
-		UnhookWindowsHookEx(keyboardHook);
-	}
-
 }
 
 void loop_cut_execute(plugintool_struct* pt_s)
