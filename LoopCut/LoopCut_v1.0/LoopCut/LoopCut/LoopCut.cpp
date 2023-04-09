@@ -101,28 +101,101 @@ int vertex_func(mgeditorcontext editor_context, mgvertexinputdata* vertex_input_
 
 void point_func(mgeditorcontext editor_context, mgpointinputdata* point_input_data, void* tool_data)
 {
-	auto pt_s = static_cast<PLUGINTOOLSTRUCT*>(tool_data);
+	const auto pt_s = static_cast<PLUGINTOOLSTRUCT*>(tool_data);
 	int update_ref = 0;
 
 	const mgmousestate mouse_event = point_input_data->mouseEvent;
 	const unsigned int keyboard_flags = point_input_data->keyboardFlags;
 	const unsigned int button_flags = point_input_data->buttonFlags;
-	const mgcoord2i* this_point = point_input_data->thisPoint;
-	const mgcoord2i* first_point = point_input_data->firstPoint;
+	const mgcoord2d this_point{ static_cast<double>(point_input_data->thisPoint->x), static_cast<double>(point_input_data->thisPoint->y) };
+	const mgcoord2d first_point{ static_cast<double>(point_input_data->firstPoint->x), static_cast<double>(point_input_data->firstPoint->y) };
+
+	switch (keyboard_flags)
+	{
+	case MKB_ALTKEY:// Alt: generate
+		switch (button_flags)
+		{
+		case MMB_LEFTMOUSE:
+			generate(pt_s);
+			free_face_loop();
+			mgEditorTerminateTool(pt_s->econtext);
+			break;
+
+		case MMB_RIGHTMOUSE:
+			break;
+
+		case MMB_MIDDLEMOUSE:
+			break;
+
+		default:
+			break;
+		}
+
+	case MKB_SHIFTKEY:// Shift: increase the number of split
+		switch (button_flags)
+		{
+		case MMB_LEFTMOUSE:
+			
+			break;
+
+		case MMB_RIGHTMOUSE:
+			break;
+
+		case MMB_MIDDLEMOUSE:
+			break;
+
+		default:
+			break;
+		}
+		break;
+
+	case MKB_CTRLKEY:// Ctrl: unworkable
+		break;
+
+	default: // No key: move
+		switch (button_flags)
+		{
+		case MMB_LEFTMOUSE:
+			
+			break;
+
+		case MMB_RIGHTMOUSE:
+			break;
+
+		case MMB_MIDDLEMOUSE:
+			break;
+
+		default:
+			break;
+		}
+		break;
+	}
+
 
 	switch (mouse_event)
 	{
 	case MMSS_START:
-		mgSendMessage(MMSG_STATUS, "This is a MMSS_START.");
 		break;
 	case MMSS_CONTINUE:
-		mgSendMessage(MMSG_STATUS, "This is a MMSS_CONTINUE.");
+		if (f_l.empty())
+		{
+			return;
+		}
+
+		// increase number of split
+		if(GetKeyState(VK_LSHIFT) < 0)
+		{
+			increase_number_of_split(pt_s, static_cast<int>(this_point.x - first_point.x) / 20);
+			break;
+		}
+
+		// move cut point
+		move_cut_point(pt_s, this_point.x - first_point.x);
 		break;
 	case MMSS_STOP:
-		mgSendMessage(MMSG_STATUS, "This is a MMSS_STOP.");
+		
 		break;
 	case MMSS_NONE:
-		mgSendMessage(MMSG_STATUS, "This is a MMSS_NONE.");
 		break;
 	}
 }
@@ -135,6 +208,23 @@ void pick_func(mgeditorcontext editor_context, mgpickinputdata* pick_input_data,
 	unsigned int keyboard_flags = pick_input_data->keyboardFlags;
 	unsigned int button_flags = pick_input_data->buttonFlags;
 	const mgselectlist select_list = pick_input_data->pickList;
+
+	if(keyboard_flags == MKB_ALTKEY)
+	{
+		switch (button_flags)
+		{
+		case MMB_LEFTMOUSE:
+			set_input_mode(pt_s, MMSI_POINTINPUT);
+			break;
+		case MMB_RIGHTMOUSE:
+			break;
+		default: 
+			break;
+		}
+		
+		return;
+	}
+
 
 	mgrec* rec = mgGetNextRecInList(select_list, MG_NULL);
 	const mgcode code = mgGetCode(rec);
@@ -237,6 +327,7 @@ static mgstatus generate_callback(mggui gui,
 	const auto pt_s =static_cast<plugintool_struct*>(user_data);
 	mgSendMessage(MMSG_STATUS, "generate_callback1");
 	generate(pt_s);
+	mgEditorTerminateTool(pt_s->econtext);
 	return MSTAT_OK;
 }
 
@@ -263,7 +354,7 @@ void initialize_control_callbacks(plugintool_struct* pt_s)
 
 mgstatus initialize_dialog(plugintool_struct* pt_s)
 {
-	mgEditorSelectMouseInput(pt_s->econtext, MMSI_PICKINPUT);
+	set_input_mode(pt_s,MMSI_PICKINPUT);
 
 	if (!pt_s->dialog)
 	{
@@ -276,22 +367,25 @@ mgstatus initialize_dialog(plugintool_struct* pt_s)
 		mgTextSetInteger(gui_item, pt_s->split, MG_NULL);
 	}
 
-	// Install the global hooks
-	mouse_hook = SetWindowsHookEx(WH_MOUSE_LL, mouse_proc, nullptr, 0);
-	//keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_proc, nullptr, 0);
 
-	//if (keyboardHook == nullptr)
-	//{
-	//	mgSendMessage(MMSG_WARNING, "Keyboard hook install failed.");
-	//}
-
-
-	// Check if the hook is installed successfully
+	//hooks
+	/*if(mouse_hook == nullptr)
+	{
+		mouse_hook = SetWindowsHookEx(WH_MOUSE_LL, mouse_proc, nullptr, 0);
+	}
 	if (mouse_hook == nullptr)
 	{
 		mgSendMessage(MMSG_WARNING, "Mouse hook install failed.");
 	}
 
+	if(keyboardHook == nullptr)
+	{
+		keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_proc, nullptr, 0);
+	}
+	if (keyboardHook == nullptr)
+	{
+		mgSendMessage(MMSG_WARNING, "Keyboard hook install failed.");
+	}*/
 
 	return MSTAT_OK;
 }
@@ -302,20 +396,25 @@ void terminate_func(mgeditorcontext editor_context, mgtoolterminationreason reas
 
 	switch (reason)
 	{
-	case MTRM_DONE:
+	case MTRM_DONE:// MBT_DONE
 		generate(pt_s);
+		free_face_loop();
+		MGMSG("terminate_func0")
 		break;
-	case MTRM_CANCEL:
-		mgDeleteAllConstructs(editor_context);
+	case MTRM_CANCEL:// MBT_CANCEL
+		free_face_loop();
 		break;
-	case MTRM_SELF: 
+
+	case MTRM_SELF:// mgEditorTerminateTool
 		break;
-	case MTRM_SYSTEM: 
+
+	case MTRM_SYSTEM://window closed, tool chain, etc
 		break;
 	}
 
 	delete pt_s;
 
+	mgDeleteAllConstructs(editor_context);
 
 	// Uninstall the hooks
 	if (mouse_hook != nullptr)
@@ -332,5 +431,17 @@ void terminate_func(mgeditorcontext editor_context, mgtoolterminationreason reas
 void loop_cut_execute(plugintool_struct* pt_s)
 {
 	cut_face_loop(pt_s);
-	free_face_loop();
+}
+
+mgbool set_input_mode(plugintool_struct* pt_s, const mgmouseinputtype mode)
+{
+	if(current_mouse_input != mode)
+	{
+		if(MSTAT_ISOK(mgEditorSelectMouseInput(pt_s->econtext, mode)))
+		{
+			return MG_TRUE;
+		}
+		return MG_FALSE;
+	}
+	return MG_TRUE;
 }

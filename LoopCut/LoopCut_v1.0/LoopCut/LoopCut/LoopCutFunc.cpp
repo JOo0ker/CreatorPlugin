@@ -44,7 +44,7 @@ mgstatus loop_cut_main(PLUGINTOOLSTRUCT* pt_s, mgrec* v1)
 #endif
 
 	get_cut_point(pt_s);
-	draw_loop_cut_cst(pt_s);
+	draw_loop_cut_cst(pt_s, mgconstructcolor::MCCOLOR_RED);
 
 	return MG_TRUE;
 }
@@ -71,10 +71,10 @@ mgrec* get_loop_vtx(mgrec* v, const loop_dire dire, short* pos)
 				switch (dire)
 				{
 				case PREVIOUS:
-					m_v_p = (i - 1) > 0 ? (i - 1) : total;
+					m_v_p = (i - 1) > 0 ? static_cast<short>(i - 1) : total;
 					break;
 				case NEXT:
-					m_v_p = (i + 1) <= total ? (i + 1) : 1;
+					m_v_p = (i + 1) <= total ? static_cast<short>(i + 1) : static_cast <short>(1);
 					break;
 				}
 
@@ -272,8 +272,8 @@ faceloopcase append_face_loop_node(mgrec* p, const short* pos)
 	new_edge->edge_shared_count = 1;
 
 	new_face_loop_node->coincide_edge = new_edge;
-	new_face_loop_node->pos[0] = pos[0];
-	new_face_loop_node->pos[1] = pos[1];
+	new_face_loop_node->pos[0] = anti_pos[0];
+	new_face_loop_node->pos[1] = anti_pos[1];
 	new_face_loop_node->face = p;
 
 	sort_pos(new_face_loop_node->pos);
@@ -289,12 +289,13 @@ faceloopcase append_face_loop_node(mgrec* p, const short* pos)
 
 mgstatus init_face_loop(mgrec* v1)
 {
+	// Create a new face loop.
 	const auto f_l_first = new face_loop;
 
-	// v1
+	// Set the face to the parent of the first vertex.
 	f_l_first->face = mgGetParent(v1);
 
-	// find the selected vertex position
+	// Find the selected vertex position
 	for (f_l_first->pos[0] = 1; ; f_l_first->pos[0]++)
 	{
 		if(v1 == mgGetChildNth(f_l_first->face, f_l_first->pos[0]))
@@ -303,26 +304,30 @@ mgstatus init_face_loop(mgrec* v1)
 		}
 	}
 
-	// v2		NOTE: the vertex represented by the edge is always the previous vertex.
+	// Get the second vertex and position.		NOTE: the vertex represented by the edge is always the previous vertex.
 	mgrec* v2 = get_loop_vtx(v1, NEXT, &f_l_first->pos[1]);
 
-	// edge
+	// Create a new edge.
 	const auto edge = new mg_edge;
 	edge->v1 = v1;
 	edge->v2 = v2;
 	edge->edge_shared_count = 1;
 
+	// Set the coincidence edge of the face loop.
 	f_l_first->coincide_edge = edge;
 
+	// Add the face loop to the vector of face loops.
 	f_l.push_back(f_l_first);
 
-	return MG_TRUE;
+	return MSTAT_OK;
 }
 
 mgstatus sort_pos(short* pos)
 {
-	const short next_pos = (pos[0] + 1) > 4 ? 1 : (pos[0] + 1) ;
-	
+	// Calculate the next position.
+	const short next_pos = (pos[0] + 1) > 4 ? static_cast<short>(1) : static_cast<short>(pos[0] + 1) ;
+
+	// If pos[1] is not the next position, swap the values.
 	if(pos[1] != next_pos)
 	{// exchange the position
 		const short temp = pos[0];
@@ -330,7 +335,7 @@ mgstatus sort_pos(short* pos)
 		pos[1] = temp;
 	}
 
-	return MG_TRUE;
+	return MSTAT_OK;
 }
 
 mgstatus free_face_loop()
@@ -360,14 +365,15 @@ mgstatus free_cut_points()
 	auto iter_free = f_l.begin();
 	while (iter_free != f_l.end())
 	{
-		auto iter_free_line = (*iter_free)->cut_points->begin();
-		while (iter_free_line != (*iter_free)->cut_points->end())
+		delete (*iter_free)->cut_points_data.cut_points_on_edge;
+		auto iter_free_line = (*iter_free)->cut_points_data.cut_points->begin();
+		while (iter_free_line != (*iter_free)->cut_points_data.cut_points->end())
 		{
 			delete (*iter_free_line);
 			++iter_free_line;
 		}
-		(*iter_free)->cut_points->clear();
-		delete (*iter_free)->cut_points;
+		(*iter_free)->cut_points_data.cut_points->clear();
+		delete (*iter_free)->cut_points_data.cut_points;
 		++iter_free;
 	}
 	return MSTAT_OK;
@@ -380,6 +386,7 @@ mgbool show_face_loop()
 	while(iter_f_l != f_l.end())
 	{
 		mgSendMessage(MMSG_STATUS, "Face name: %1s", mgGetName((*iter_f_l)->face));
+		MGMSG("pos: %1d, %2d", (*iter_f_l)->pos[0], (*iter_f_l)->pos[1])
 		++iter_f_l;
 	}
 	mgSendMessage(MMSG_STATUS, "------------end------------");
@@ -414,20 +421,27 @@ mgbool another_edge_pos(const short* pos, short* anti_pos)
 
 mgbool get_cut_point(const PLUGINTOOLSTRUCT* pt_s)
 {
+	// Initialize an iterator for the face loops.
 	iter_f_l = f_l.begin();
+
+	// Loop through each face loop and calculate the cut points.
 	while (iter_f_l != f_l.end())
 	{
+		// Loop through each face loop and calculate the cut points.
 		if ((*iter_f_l)->coincide_edge->edge_shared_count > 2)
 		{
 			return MG_FALSE;
 		}
 
+		// Loop through each face loop and calculate the cut points.
 		short anti_pos[2] = { 0, 0 };
 		another_edge_pos((*iter_f_l)->pos, anti_pos);
 
+		// Loop through each face loop and calculate the cut points.
 		mgrec* f_v[5]{ nullptr };
 		mgcoord3d f_v_coord[5]{ {0,0,0} };
 
+		// Set the first vertex to NULL and get the remaining vertices and coordinates of the face.
 		f_v[0] = MG_NULL;
 		f_v[1] = mgGetChildNth((*iter_f_l)->face, 1);
 		f_v[2] = mgGetChildNth((*iter_f_l)->face, 2);
@@ -440,25 +454,40 @@ mgbool get_cut_point(const PLUGINTOOLSTRUCT* pt_s)
 		f_v_coord[3] = get_vertex_coord(f_v[3]);
 		f_v_coord[4] = get_vertex_coord(f_v[4]);
 
-		const auto temp = new std::vector<mglined*>;
+		// Create a vector to store the cut points and an array to store the cut points on the edge being cut.
+		const auto temp_cut_points = new std::vector<mglined*>;
+		const auto temp_cut_points_on_edge = new mglined[2];
 
+		temp_cut_points_on_edge[0] = mgMakeLine(&f_v_coord[(*iter_f_l)->pos[0]], &f_v_coord[(*iter_f_l)->pos[1]]);
+		temp_cut_points_on_edge[1] = mgMakeLine(&f_v_coord[anti_pos[1]], &f_v_coord[anti_pos[0]]);
+
+		// Loop through the number of splits and calculate the cut points for each iteration.
 		for(int i = 0; i < pt_s->split; i++)
 		{
+			// Calculate the amount to interpolate between the two edges.
 			const double amount = (1.0 / (pt_s->split + 1)) * (i + 1);
 
+			// Calculate the amount to interpolate between the two edges.
 			auto cut_line = new mglined;
-			cut_line->p1 = mgCoord3dLerp(&f_v_coord[(*iter_f_l)->pos[0]], &f_v_coord[(*iter_f_l)->pos[1]], amount);
-			cut_line->p2 = mgCoord3dLerp(&f_v_coord[anti_pos[1]], &f_v_coord[anti_pos[0]], amount);
-			temp->push_back(cut_line);
+			cut_line->p1 = mgCoord3dLerp(&temp_cut_points_on_edge[0].p1, &temp_cut_points_on_edge[0].p2, amount);
+			cut_line->p2 = mgCoord3dLerp(&temp_cut_points_on_edge[1].p1, &temp_cut_points_on_edge[1].p2, amount);
+			temp_cut_points->push_back(cut_line);
 		}
-		(*iter_f_l)->cut_points = temp;
+
+		// Calculate the amount to interpolate between the two edges.
+		(*iter_f_l)->cut_points_data.cut_points = temp_cut_points;
+		(*iter_f_l)->cut_points_data.cut_points_on_edge = temp_cut_points_on_edge;
+		(*iter_f_l)->offset[total_offset] = 0.0;
+		(*iter_f_l)->offset[last_offset] = 0.0;
+		(*iter_f_l)->offset[current_offset] = 0.0;
+
 		++iter_f_l;
 	}
 
 	return MG_TRUE;
 }
 
-mgbool draw_loop_cut_cst(const PLUGINTOOLSTRUCT* pt_s)
+mgbool draw_loop_cut_cst(const PLUGINTOOLSTRUCT* pt_s, const mgconstructcolor color)
 {
 	mgDeleteAllConstructs(pt_s->econtext);
 	if (f_l.empty()) return MG_FALSE;
@@ -471,11 +500,11 @@ mgbool draw_loop_cut_cst(const PLUGINTOOLSTRUCT* pt_s)
 			return MG_FALSE;
 		}
 
-		auto iter_e = (*iter_f_l)->cut_points->begin();
+		auto iter_e = (*iter_f_l)->cut_points_data.cut_points->begin();
 		
-		while (iter_e != (*iter_f_l)->cut_points->end())
+		while (iter_e != (*iter_f_l)->cut_points_data.cut_points->end())
 		{
-			draw_edge_node_cst(pt_s, (*iter_e)->p1, (*iter_e)->p2);
+			draw_edge_node_cst(pt_s, (*iter_e)->p1, (*iter_e)->p2, color);
 			++iter_e;
 		}
 		++iter_f_l;
@@ -484,9 +513,10 @@ mgbool draw_loop_cut_cst(const PLUGINTOOLSTRUCT* pt_s)
 	return MG_TRUE;
 }
 
-mgbool draw_edge_node_cst(const PLUGINTOOLSTRUCT* pt_s, mgcoord3d v10_coord, mgcoord3d v20_coord)
+mgbool draw_edge_node_cst(const PLUGINTOOLSTRUCT* pt_s, mgcoord3d v10_coord, mgcoord3d v20_coord, const mgconstructcolor color)
 {
-	const mgrec* cts_e = mgNewConstructEdge(pt_s->econtext, &v10_coord, &v20_coord);
+	mgrec* cts_e = mgNewConstructEdge(pt_s->econtext, &v10_coord, &v20_coord);
+	mgSetConstructEdgeColor(cts_e, color);
 
 	return cts_e ? MG_TRUE : MG_FALSE;
 }
@@ -507,42 +537,41 @@ mgbool cut_face_loop(const PLUGINTOOLSTRUCT* pt_s)
 		++iter_f_l;
 	}
 
-	mgDeleteAllConstructs(pt_s->econtext);
-
 	return MG_TRUE;
 }
 mgbool split_face(const PLUGINTOOLSTRUCT* pt_s, const face_loop* f_l_n)
 {
-	auto iter_e = f_l_n->cut_points->begin();
+	// Create an iterator for the cut points.
+	auto iter_e = f_l_n->cut_points_data.cut_points->begin();
 
-	mgrec* f_v[5]{
-		MG_NULL,
-		mgGetChildNth(f_l_n->face, 1),
-		mgGetChildNth(f_l_n->face, 2),
-		mgGetChildNth(f_l_n->face, 3),
-		mgGetChildNth(f_l_n->face, 4)
-	};
-
+	// Initialize an array of coordinates for the vertices of the new polygons.
 	short anti_pos[2] = { 0,0 };
 	another_edge_pos(f_l_n->pos, anti_pos);
-
 	mgcoord3d f_v_coord[5] = {
 		mgCoord3dZero(),
 		mgCoord3dZero(),
 		mgCoord3dZero(),
-		get_vertex_coord(f_v[f_l_n->pos[0]]),
-		get_vertex_coord(f_v[anti_pos[1]])
+		f_l_n->cut_points_data.cut_points_on_edge[0].p1,
+		f_l_n->cut_points_data.cut_points_on_edge[1].p1
 	};
 
+	// Initialize an array to store the new polygons.
 	std::vector<mgrec*> new_polygons;
 
-	while (iter_e != f_l_n->cut_points->end())
+	// Loop through the cut points and create a new polygon for each one.
+	while (iter_e != f_l_n->cut_points_data.cut_points->end())
 	{
+		// Loop through the cut points and create a new polygon for each one.
 		mgrec* new_p = mgDuplicateEx(f_l_n->face, MDUP_DERIVEDNAMES);
 		new_polygons.push_back(new_p);
+
+		// Attach the new polygon to the parent database.
 		mgAttach(pt_s->parent, new_p);
+
+		// Attach the new polygon to the parent database.
 		mgEditorAppendUndoForCreate(pt_s->econtext, new_p);
 
+		// Update the vertex coordinates of the new polygon based on the cut points.
 		f_v_coord[1] = f_v_coord[4];
 		f_v_coord[2] = f_v_coord[3];
 		f_v_coord[3] = (*iter_e)->p1;
@@ -555,6 +584,7 @@ mgbool split_face(const PLUGINTOOLSTRUCT* pt_s, const face_loop* f_l_n)
 		++iter_e;
 	}
 
+	// Create one final polygon using the last set of cut points.
 	mgrec* new_p = mgDuplicateEx(f_l_n->face, MDUP_DERIVEDNAMES);
 	new_polygons.push_back(new_p);
 	mgAttach(pt_s->parent, new_p);
@@ -562,14 +592,111 @@ mgbool split_face(const PLUGINTOOLSTRUCT* pt_s, const face_loop* f_l_n)
 
 	f_v_coord[1] = f_v_coord[4];
 	f_v_coord[2] = f_v_coord[3];
-	f_v_coord[3] = get_vertex_coord(f_v[f_l_n->pos[1]]);
-	f_v_coord[4] = get_vertex_coord(f_v[anti_pos[0]]);
+	f_v_coord[3] = f_l_n->cut_points_data.cut_points_on_edge[0].p2;
+	f_v_coord[4] = f_l_n->cut_points_data.cut_points_on_edge[1].p2;
 
 	for (int i = 1; i < 5; i++)
 	{
 		mgSetVtxCoord(mgGetChildNth(new_p, i), f_v_coord[i].x, f_v_coord[i].y, f_v_coord[i].z);
 	}
 
+	// Create one final polygon using the last set of cut points.
 	mgEditorAppendUndoForDelete(pt_s->econtext, f_l_n->face);
+
 	return MG_TRUE;
+}
+
+mgbool increase_number_of_split(PLUGINTOOLSTRUCT* pt_s, const int num)
+{
+	// Get the GUI element that displays the number of splits.
+	const mggui gui = mgFindGuiById(pt_s->dialog, EControl_Number);  // NOLINT(misc-misplaced-const)
+
+	// Update the number of splits based on the input value.
+	pt_s->split = num > 0 ? num : 1;
+
+	// Update the number of splits based on the input value.
+	if (MSTAT_ISOK(mgRefreshDialog(gui)))
+	{
+		return MG_TRUE;
+	}
+
+	// If the dialog refresh failed, return MG_FALSE.
+	return MG_FALSE;
+}
+
+mgbool move_cut_point(const PLUGINTOOLSTRUCT* pt_s, const double delta)
+{
+	auto iter = f_l.begin();
+
+	while(iter != f_l.end())
+	{
+		// Apply an offset to the current object's offsets.
+		(*iter)->offset[current_offset] = delta / 1000.0;
+
+		// If the offset is close to zero, set the last offset to zero.
+		if (abs((delta - 0.0)) < 0.0000001)
+		{
+			(*iter)->offset[last_offset] = 0.0;
+		}
+
+		// Calculate the final offset based on the current, total, and last offsets.
+		const double final_offset =
+			clip_number((*iter)->offset[total_offset] + (*iter)->offset[current_offset] - (*iter)->offset[last_offset],
+				-1.0 / (pt_s->split + 1), 
+				1.0 / (pt_s->split + 1));
+
+		// Calculate the delta offset and update the current, total, and last offsets.
+		const double delta_offset = final_offset - (*iter)->offset[total_offset];
+		(*iter)->offset[total_offset] = final_offset;
+		(*iter)->offset[last_offset] = (*iter)->offset[current_offset];
+
+		// Iterate through the cut points of the current object.
+		auto iter_c_p = (*iter)->cut_points_data.cut_points->begin();
+		while (iter_c_p != (*iter)->cut_points_data.cut_points->end())
+		{
+			// Get the vector between the cut points.
+			mgvectord original_edge_vector1 = mgMakeVectord(
+				&(*iter)->cut_points_data.cut_points_on_edge[0].p1,
+				&(*iter)->cut_points_data.cut_points_on_edge[0].p2);
+			mgvectord original_edge_vector2 = mgMakeVectord(
+				&(*iter)->cut_points_data.cut_points_on_edge[1].p1,
+				&(*iter)->cut_points_data.cut_points_on_edge[1].p2);
+
+			// Convert the normalized vector to a coordinate.
+			mgcoord3d normalize_coord = mgVectordToCoord3d(&original_edge_vector1);
+			mgcoord3d normalize_coord2 = mgVectordToCoord3d(&original_edge_vector2);
+
+			// Calculate the offset for the first cut point.
+			mgcoord3d p1_offset = mgCoord3dMultiply(&normalize_coord, delta_offset);
+			mgcoord3d p2_offset = mgCoord3dMultiply(&normalize_coord2, delta_offset);
+
+			// Calculate the offset for the first cut point.
+			(*iter_c_p)->p1 = mgCoord3dAdd(&(*iter_c_p)->p1, &p1_offset);
+			(*iter_c_p)->p2 = mgCoord3dAdd(&(*iter_c_p)->p2, &p2_offset);
+
+			// Move to the next cut point.
+			++iter_c_p;
+		}
+		// Move to the next cut point.
+    	++iter;
+	}
+
+	// Draw a loop cut using the modified cut points, colored red.
+	draw_loop_cut_cst(pt_s, mgconstructcolor::MCCOLOR_RED);
+
+	return MG_TRUE;
+}
+
+double clip_number(const double value, const double min, const double max)
+{
+	// If the value is less than the minimum, return the minimum.
+	if (value < min) {
+		return min;
+	}
+	// If the value is greater than the maximum, return the maximum.
+	if (value > max) {
+		return max;
+	}
+	// Otherwise, return the original value.
+	return value;
 }

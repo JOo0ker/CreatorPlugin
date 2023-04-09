@@ -12,20 +12,20 @@ typedef struct MGEDGE
 	int edge_shared_count;
 }mg_edge;
 
+typedef struct CUTPOINTSDATA
+{
+	mglined* cut_points_on_edge;
+	std::vector<mglined*>* cut_points;
+}cut_points_data;
+
 typedef struct FACELOOP
 {
 	mgrec* face;
 	short pos[2];		// coincide vertex's position 
 	mg_edge* coincide_edge;
-	std::vector<mglined*>* cut_points;
+	double offset[3];// 0: total offset; 1: last offset; 2: current offset
+	cut_points_data cut_points_data;
 }face_loop;
-
-typedef enum MOUSEINPPUTMODE
-{
-	vertex = 1,
-	point = 2,
-	pick = 3
-}mouseinputmode;
 
 typedef enum FACLELOOPCASE
 {
@@ -58,7 +58,32 @@ typedef enum
 	eNext,
 }loop_dire;
 
+typedef enum
+{
+	total_offset,
+	last_offset,
+	current_offset
+}offset_type;
+
 /* Globals */
+static mgmouseinputtype current_mouse_input = MMSI_NOINPUT;
 static mgresource* resource_;
 static HHOOK mouse_hook;
 static HHOOK keyboardHook;
+static HWND creator_hwnd;
+static DWORD creator_thread_id;
+
+
+#pragma region define_func
+
+#define MGMSG(...) mgSendMessage(MMSG_STATUS, __VA_ARGS__);
+
+
+
+
+#pragma region
+
+
+#pragma region inline_func
+
+#pragma endregion

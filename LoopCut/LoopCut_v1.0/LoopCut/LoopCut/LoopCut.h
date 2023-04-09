@@ -138,28 +138,5 @@ static void terminate_func(mgeditorcontext editor_context,
  */
 static void loop_cut_execute(plugintool_struct* pt_s);
 
-static LRESULT CALLBACK mouse_proc(int nCode, WPARAM wParam, LPARAM lParam)
-{
-    if (nCode >= 0 && wParam == WM_MBUTTONDOWN)
-    {
-        mgSendMessage(MMSG_WARNING, "Middle mouse pressed.");
-    }
+static mgbool set_input_mode(plugintool_struct* pt_s, mgmouseinputtype mode);
 
-    // Pass the event to the next hook procedure
-    return CallNextHookEx(nullptr, nCode, wParam, lParam);
-}
-
-static LRESULT CALLBACK keyboard_proc(int nCode, WPARAM wParam, LPARAM lParam)
-{
-    if (nCode == HC_ACTION) 
-    {
-	    const auto kbd_struct = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-
-        if (wParam == WM_KEYDOWN && kbd_struct->vkCode == 'P') {
-            mgSendMessage(MMSG_WARNING, "p pressed.");
-        }
-    }
-
-    // Pass the event to the next hook procedure
-    return CallNextHookEx(nullptr, nCode, wParam, lParam);
-}

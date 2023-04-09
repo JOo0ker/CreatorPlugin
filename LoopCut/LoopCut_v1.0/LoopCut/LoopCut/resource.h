@@ -8,8 +8,6 @@
 #define EControl_Number                 1011
 #define TControl_Title                  1012
 #define TControl_Label                  1013
-#define Radio_Select                    1014
-#define Radio_Move                      1015
 
 // Next default values for new objects
 // 
