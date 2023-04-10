@@ -8,7 +8,7 @@
 #pragma region define
 #define PREVIOUS ePrevious
 #define NEXT eNext
-#define MOVE_SENSITIVITY 6000
+#define MOVE_SENSITIVITY 300
 #define SPLIT_NUM_SENSITIVITY 20
 
 #pragma endregion

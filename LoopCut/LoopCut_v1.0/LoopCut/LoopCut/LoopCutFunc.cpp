@@ -663,13 +663,14 @@ mgbool move_cut_point(const PLUGINTOOLSTRUCT* pt_s, const mgcoord2d first_point,
 
 	const double y_weight = mgCoord3dDot(&project_coord, &up);
 	const double x_weight = mgCoord3dDot(&project_coord, &right_coord);
-	const mgvectord screen_edge_vector{ x_weight, y_weight , 0.0};
+	mgvectord screen_edge_vector{ x_weight, y_weight , 0.0};
+	mgVectordSetUnitized(&screen_edge_vector);
 	const double delta = mgVectordDot(&move_vector, &screen_edge_vector);
 
 	while(iter != f_l.end())
 	{
 		// Apply an offset to the current object's offsets.
-		(*iter)->offset[current_offset] = - delta / MOVE_SENSITIVITY;
+		(*iter)->offset[current_offset] = - delta / MOVE_SENSITIVITY / pt_s->split;
 
 		// If the offset is close to zero, set the last offset to zero.
 		if (abs((delta - 0.0)) < 0.0000001)
