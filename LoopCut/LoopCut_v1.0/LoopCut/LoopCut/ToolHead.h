@@ -8,7 +8,7 @@
 #pragma region define
 #define PREVIOUS ePrevious
 #define NEXT eNext
-#define MOVE_SENSITIVITY 2000
+#define MOVE_SENSITIVITY 6000
 #define SPLIT_NUM_SENSITIVITY 20
 
 #pragma endregion
@@ -82,7 +82,7 @@ static mgresource* resource_;
 
 
 
-#pragma region
+#pragma endregion
 
 
 #pragma region inline_func

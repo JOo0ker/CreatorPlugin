@@ -157,10 +157,11 @@ mgbool increase_number_of_split(PLUGINTOOLSTRUCT* pt_s, int num);
 /**
  * \brief iterates through a list of objects and applies an offset to their cut points
  * \param pt_s PLUGINTOOLSTRUCT
- * \param delta delta offset by mouse input
+ * \param first_point first point
+ * \param this_point this point
  * \return MG_TRUE/MG_FALSE
  */
-mgbool move_cut_point(const PLUGINTOOLSTRUCT* pt_s, const double delta);
+mgbool move_cut_point(const PLUGINTOOLSTRUCT* pt_s, const mgcoord2d first_point, const mgcoord2d this_point);
 
 /**
  * \brief clips a number between a minimum and a maximum value
@@ -170,3 +171,5 @@ mgbool move_cut_point(const PLUGINTOOLSTRUCT* pt_s, const double delta);
  * \return the clipped number
  */
 double clip_number(const double value, const double min, const double max);
+
+mgplaned get_view_plane(const plugintool_struct* pt_s);

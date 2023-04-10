@@ -636,14 +636,40 @@ mgbool increase_number_of_split(PLUGINTOOLSTRUCT* pt_s, const int num)
 	return MG_FALSE;
 }
 
-mgbool move_cut_point(const PLUGINTOOLSTRUCT* pt_s, const double delta)
+mgbool move_cut_point(const PLUGINTOOLSTRUCT* pt_s, const mgcoord2d first_point, const mgcoord2d this_point)
 {
+	const mgvectord move_vector{ this_point.x - first_point.x, this_point.y - first_point.y, 0.0 };
+
+	mgcoord3d eye = mgCoord3dZero(), center = mgCoord3dZero(), up = mgCoord3dZero();
+
+	mgGetCurrentLookAt(pt_s->db,
+		&eye.x, &eye.y, &eye.z,
+		&center.x, &center.y, &center.z,
+		&up.x, &up.y, &up.z);
+
+	const mgvectord up_vector = mgCoord3dToVectord(&up);
+	const mgvectord front_vector = { center.x - eye.x, center.y - eye.y, center.z - eye.z };
+	const mgvectord right_vector = mgVectordCross(&front_vector, &up_vector);
+	const mgcoord3d right_coord = mgVectordToCoord3d(&right_vector);
+
+	const mgplaned view_plane = mgMakePlaned(&eye, &front_vector);
 	auto iter = f_l.begin();
+
+	const mgcoord3d original_edge = mgCoord3dSubtract(
+							&(*iter)->cut_points_data.cut_points_on_edge[0].p1, 
+							&(*iter)->cut_points_data.cut_points_on_edge[0].p2);
+
+	const mgcoord3d project_coord = mgCoord3dProjectOnPlane(&original_edge, &view_plane);
+
+	const double y_weight = mgCoord3dDot(&project_coord, &up);
+	const double x_weight = mgCoord3dDot(&project_coord, &right_coord);
+	const mgvectord screen_edge_vector{ x_weight, y_weight , 0.0};
+	const double delta = mgVectordDot(&move_vector, &screen_edge_vector);
 
 	while(iter != f_l.end())
 	{
 		// Apply an offset to the current object's offsets.
-		(*iter)->offset[current_offset] = delta / MOVE_SENSITIVITY;
+		(*iter)->offset[current_offset] = - delta / MOVE_SENSITIVITY;
 
 		// If the offset is close to zero, set the last offset to zero.
 		if (abs((delta - 0.0)) < 0.0000001)
@@ -711,4 +737,18 @@ double clip_number(const double value, const double min, const double max)
 	}
 	// Otherwise, return the original value.
 	return value;
+}
+
+mgplaned get_view_plane(const plugintool_struct* pt_s)
+{
+	mgcoord3d eye = mgCoord3dZero(), center = mgCoord3dZero(), up = mgCoord3dZero();
+
+	mgGetCurrentLookAt(pt_s->db,
+		&eye.x, &eye.y, &eye.z,
+		&center.x, &center.y, &center.z,
+		&up.x, &up.y, &up.z);
+
+	const mgvectord front_vector = { center.x - eye.x, center.y - eye.y, center.z - eye.z };
+
+	return mgMakePlaned(&eye, &front_vector);
 }

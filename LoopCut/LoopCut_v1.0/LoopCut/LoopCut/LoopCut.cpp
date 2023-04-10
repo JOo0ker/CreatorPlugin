@@ -190,7 +190,7 @@ void point_func(mgeditorcontext editor_context, mgpointinputdata* point_input_da
 		}
 
 		// move cut point
-		move_cut_point(pt_s, this_point.x - first_point.x);
+		move_cut_point(pt_s, first_point, this_point);
 		break;
 	case MMSS_STOP:
 		
